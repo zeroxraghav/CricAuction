@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlayerRole {
+  BATSMAN
+  BOWLER
+  ALLROUNDER
+  WICKETKEEPER
+}
+
+enum PlayerStatus {
+  UNSOLD
+  SOLD
+  PENDING
+}
+
+model Auction {
+  id        String   @id @default(uuid())
+  name      String
+  hostId    String   // Clerk User ID of the host
+  status    String   @default("UPCOMING") // UPCOMING, ACTIVE, COMPLETED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teams     Team[]
+  players   Player[]
+  bids      Bid[]
+}
+
+model Team {
+  id             String   @id @default(uuid())
+  name           String
+  shortName      String
+  logoUrl        String?
+  budget         Float
+  remainingPurse Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  auctionId      String
+  auction        Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  players        Player[]
+  bids           Bid[]
+
+  @@unique([auctionId, name])
+  @@unique([auctionId, shortName])
+}
+
+model Player {
+  id          String       @id @default(uuid())
+  name        String
+  photoUrl    String?
+  country     String
+  role        PlayerRole
+  basePrice   Float
+  soldPrice   Float?
+  category    String?
+  status      PlayerStatus @default(PENDING)
+  stats       Json?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  auctionId   String
+  auction     Auction      @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  teamId      String?
+  team        Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  bids        Bid[]
+}
+
+model Bid {
+  id        String   @id @default(uuid())
+  amount    Float
+  timestamp DateTime @default(now())
+
+  auctionId String
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  playerId  String
+  player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}

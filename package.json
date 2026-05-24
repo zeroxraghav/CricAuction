@@ -1,0 +1,16 @@
+{
+  "name": "cricket-auction-platform",
+  "version": "1.0.0",
+  "description": "Real-time Cricket Auction Platform",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm run start --workspaces --if-present"
+  }
+}
