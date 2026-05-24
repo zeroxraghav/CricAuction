@@ -22,7 +22,7 @@ export default function SpectatorView() {
   const [bidHistory, setBidHistory] = useState<BidEntry[]>([]);
   const [timer, setTimer] = useState(0);
   const [teams, setTeams] = useState<any[]>([]);
-  const [status, setStatus] = useState<"IDLE" | "ACTIVE" | "PAUSED">("IDLE");
+  const [status, setStatus] = useState<"IDLE" | "ACTIVE" | "PAUSED" | "EDITING">("IDLE");
   const [isDeleted, setIsDeleted] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
   const [viewersCount, setViewersCount] = useState(0);
