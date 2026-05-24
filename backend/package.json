@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "ts-node src/index.ts",
-    "build": "cd ../shared && npm run build && cd ../backend && tsc",
+    "build": "cd ../shared && npm run build && cd ../backend && npx prisma generate && tsc",
     "start": "node dist/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
