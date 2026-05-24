@@ -196,6 +196,73 @@ export const setupSockets = (io: Server) => {
       io.to(auctionId).emit(SocketEvents.AUCTION_ENDED);
     });
 
+    socket.on(SocketEvents.UNDO_BID, ({ auctionId }: { auctionId: string }) => {
+      const state = getAuctionState(auctionId);
+      if (state.bidHistory.length > 0) {
+        state.bidHistory.shift();
+        const prevBid = state.bidHistory[0];
+        if (prevBid) {
+          state.currentBid = prevBid.amount;
+          state.highestBiddingTeamId = prevBid.teamId;
+          state.highestBiddingTeamName = prevBid.teamName;
+        } else {
+          state.currentBid = 0;
+          state.highestBiddingTeamId = null;
+          state.highestBiddingTeamName = null;
+        }
+        io.to(auctionId).emit(SocketEvents.AUCTION_STATE_UPDATE, getCleanState(auctionId));
+      }
+    });
+
+    socket.on(SocketEvents.REVERT_LAST_PLAYER, async ({ auctionId }: { auctionId: string }) => {
+      const state = getAuctionState(auctionId);
+      if (state.currentPlayer) {
+        return socket.emit(SocketEvents.ERROR, { message: 'Must clear current player or wait until IDLE to revert' });
+      }
+
+      // Find the last sold or unsold player
+      const lastPlayer = await prisma.player.findFirst({
+        where: { auctionId, status: { in: ['SOLD', 'UNSOLD'] } },
+        orderBy: { updatedAt: 'desc' }
+      });
+
+      if (!lastPlayer) {
+        return socket.emit(SocketEvents.ERROR, { message: 'No sold/unsold players to revert' });
+      }
+
+      // Revert player status
+      await prisma.player.update({
+        where: { id: lastPlayer.id },
+        data: {
+          status: 'PENDING',
+          soldPrice: null,
+          teamId: null,
+        }
+      });
+
+      // Refund the team purse if sold
+      if (lastPlayer.status === 'SOLD' && lastPlayer.teamId && lastPlayer.soldPrice) {
+        await prisma.team.update({
+          where: { id: lastPlayer.teamId },
+          data: { remainingPurse: { increment: lastPlayer.soldPrice } }
+        });
+      }
+
+      // Make this player the current player
+      state.currentPlayer = { ...lastPlayer, status: 'PENDING', soldPrice: undefined, teamId: undefined } as unknown as Player;
+      state.currentBid = 0;
+      state.highestBiddingTeamId = null;
+      state.highestBiddingTeamName = null;
+      state.timer = 0;
+      state.bidHistory = [];
+      state.status = 'ACTIVE';
+
+      startTimer(io, auctionId);
+      io.to(auctionId).emit(SocketEvents.AUCTION_STATE_UPDATE, getCleanState(auctionId));
+    });
+
+
+
     socket.on('disconnecting', () => {
       // broadcast viewers update after this socket leaves
       socket.rooms.forEach((room) => {

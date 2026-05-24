@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { initRedis, pubClient, subClient } from './redis';
@@ -10,7 +10,7 @@ import { setupSockets } from './sockets';
 import auctionsRoutes from './routes/auctions';
 import publicRoutes from './routes/public';
 
-dotenv.config();
+
 
 const app = express();
 const httpServer = createServer(app);

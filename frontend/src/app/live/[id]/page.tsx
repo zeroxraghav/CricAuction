@@ -33,6 +33,7 @@ export default function SpectatorView() {
   const [showUnsoldPopup, setShowUnsoldPopup] = useState(false);
   const [unsoldPlayers, setUnsoldPlayers] = useState<any[]>([]);
 
+
   // Sold popup
   const [soldPopup, setSoldPopup] = useState<{ playerName: string; playerPhoto?: string; teamName: string; amount: number } | null>(null);
 
@@ -109,6 +110,7 @@ export default function SpectatorView() {
         amount: info.amount,
       });
       fetchTeams();
+      setTimeout(() => setSoldPopup(null), 5000);
     });
 
     socket.on(SocketEvents.PLAYER_UNSOLD, (info: any) => {
@@ -117,6 +119,7 @@ export default function SpectatorView() {
         teamName: "UNSOLD",
         amount: 0,
       });
+      setTimeout(() => setSoldPopup(null), 5000);
     });
 
     socket.on(SocketEvents.AUCTION_DELETED, () => {
@@ -131,6 +134,8 @@ export default function SpectatorView() {
       setIsEnded(true);
     });
 
+
+
     return () => {
       socket.off(SocketEvents.BID_UPDATED);
       socket.off(SocketEvents.TIMER_UPDATE);
@@ -140,6 +145,7 @@ export default function SpectatorView() {
       socket.off(SocketEvents.AUCTION_DELETED);
       socket.off('VIEWERS_COUNT_UPDATE');
       socket.off(SocketEvents.AUCTION_ENDED);
+
     };
   }, [socket, auctionId]);
 
@@ -437,24 +443,30 @@ export default function SpectatorView() {
               <button onClick={() => setSoldPopup(null)} className="absolute top-6 right-6 text-gray-400 hover:text-white"><X className="w-7 h-7" /></button>
               
               {soldPopup.amount > 0 ? (
-                <>
-                  <Trophy className="w-20 h-20 text-brand mx-auto mb-6" />
-                  {soldPopup.playerPhoto && (
-                    <img src={soldPopup.playerPhoto} alt="" className="w-32 h-32 rounded-full object-cover border-4 border-brand/50 mx-auto mb-6 shadow-[0_0_40px_rgba(212,175,55,0.3)]" />
+                <div className="flex flex-col md:flex-row items-center justify-center gap-10">
+                  {soldPopup.playerPhoto ? (
+                    <img src={soldPopup.playerPhoto} alt="" className="w-48 h-48 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_40px_rgba(212,175,55,0.3)] shrink-0" />
+                  ) : (
+                    <div className="w-48 h-48 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-7xl font-black text-white/20 shrink-0">{soldPopup.playerName.charAt(0)}</div>
                   )}
-                  <h2 className="text-6xl font-black text-brand mb-4" style={{ textShadow: '0 0 30px rgba(212,175,55,0.5)' }}>SOLD!</h2>
-                  <p className="text-4xl font-bold text-white mb-3">{soldPopup.playerName}</p>
-                  <p className="text-2xl text-gray-300 mb-6">to <span className="text-accent font-black text-3xl">{soldPopup.teamName}</span></p>
-                  <div className="bg-brand/10 border border-brand/30 rounded-2xl py-4 px-8 inline-block">
-                    <p className="text-5xl font-black text-brand">{fmt(soldPopup.amount)}</p>
+                  <div className="text-center md:text-left">
+                    <h2 className="text-5xl md:text-6xl font-black text-brand mb-4" style={{ textShadow: '0 0 30px rgba(212,175,55,0.5)' }}>SOLD!</h2>
+                    <p className="text-3xl md:text-4xl font-bold text-white mb-3">{soldPopup.playerName}</p>
+                    <p className="text-xl md:text-2xl text-gray-300 mb-6">to <span className="text-accent font-black text-2xl md:text-3xl">{soldPopup.teamName}</span></p>
+                    <div className="bg-brand/10 border border-brand/30 rounded-2xl py-4 px-8 inline-block">
+                      <p className="text-4xl md:text-5xl font-black text-brand">{fmt(soldPopup.amount)}</p>
+                    </div>
                   </div>
-                </>
+                </div>
               ) : (
-                <>
-                  <h2 className="text-6xl font-black text-red-500 mb-6">UNSOLD</h2>
-                  <p className="text-4xl font-bold text-white">{soldPopup.playerName}</p>
-                  <p className="text-gray-400 mt-4 text-xl">No bids were placed</p>
-                </>
+                <div className="flex flex-col md:flex-row items-center justify-center gap-10">
+                  <div className="w-48 h-48 rounded-3xl bg-white/10 border-4 border-red-500/50 flex items-center justify-center text-7xl font-black text-red-500/50 shrink-0">{soldPopup.playerName.charAt(0)}</div>
+                  <div className="text-center md:text-left">
+                    <h2 className="text-5xl md:text-6xl font-black text-red-500 mb-6">UNSOLD</h2>
+                    <p className="text-3xl md:text-4xl font-bold text-white">{soldPopup.playerName}</p>
+                    <p className="text-gray-400 mt-4 text-xl">No bids were placed</p>
+                  </div>
+                </div>
               )}
             </motion.div>
           </motion.div>
@@ -600,19 +612,74 @@ export default function SpectatorView() {
         </div>
       </header>
 
-      {/* NOT LIVE OVERLAY */}
+      {/* (NOT LIVE OVERLAY REMOVED AS REQUESTED) */}
+
+      {/* STATS MODAL (PAUSED) */}
       <AnimatePresence>
-        {status === 'IDLE' && (
+        {status === 'PAUSED' && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-center"
+            className="absolute inset-0 z-40 bg-black/95 backdrop-blur-md flex flex-col items-center justify-start p-4 lg:p-6"
             style={{ top: '88px' }}
           >
-            <Clock className="w-24 h-24 text-gray-500 mb-6 opacity-50" />
-            <h2 className="text-4xl md:text-5xl font-black uppercase tracking-widest text-white mb-4">Auction is not live</h2>
-            <p className="text-xl text-gray-400 max-w-lg">Please wait for the host to start the auction. The screen will automatically refresh when the first player is drawn.</p>
+            <div className="w-full max-w-[95vw] h-full max-h-full flex flex-col pb-4">
+              <div className="flex items-center gap-4 mb-6 shrink-0">
+                {status === 'PAUSED' ? (
+                  <>
+                    <Clock className="w-8 h-8 text-yellow-500 animate-pulse" />
+                    <h2 className="text-3xl font-black uppercase tracking-widest text-yellow-500">Auction Paused</h2>
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 className="w-8 h-8 text-brand" />
+                    <h2 className="text-3xl font-black uppercase tracking-widest text-white">Live Leaderboard & Squads</h2>
+                  </>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-hidden">
+                {[...teams].sort((a, b) => b.budget - b.remainingPurse - (a.budget - a.remainingPurse)).map((team, i) => {
+                  const spent = team.budget - team.remainingPurse;
+                  return (
+                    <div key={team.id} className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col gap-3 relative overflow-hidden h-full">
+                      {i === 0 && <div className="absolute top-0 left-0 right-0 h-1 bg-brand shadow-[0_0_10px_rgba(212,175,55,1)]" />}
+                      <div className="flex justify-between items-start shrink-0">
+                        <div>
+                          <div className="font-black text-xl leading-none text-white">{team.shortName}</div>
+                          <div className="text-xs text-gray-400 mt-1">{team.players?.length || 0}/25 Players</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Purse</div>
+                          <div className="font-mono font-bold text-base text-green-400">{fmt(team.remainingPurse)}</div>
+                        </div>
+                      </div>
+                      
+                      {/* Players List */}
+                      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 mt-2 border-t border-white/10 pt-2">
+                        {team.players && team.players.length > 0 ? (
+                          <div className="flex flex-col gap-1">
+                            {team.players.map((p: any) => (
+                              <div key={p.id} className="flex justify-between items-center text-xs py-1.5 border-b border-white/5 last:border-0">
+                                <span className="truncate pr-2 text-gray-300">{p.name}</span>
+                                <span className="font-mono text-brand whitespace-nowrap">{fmt(p.soldPrice || 0)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-gray-500 text-center py-4 italic">No players yet</div>
+                        )}
+                      </div>
+                      
+                      <div className="shrink-0 border-t border-white/10 pt-3 flex justify-between items-center">
+                        <span className="text-xs text-gray-500 uppercase font-bold tracking-widest">Spent</span>
+                        <span className="font-mono font-bold text-sm text-white">{fmt(spent)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -632,16 +699,20 @@ export default function SpectatorView() {
                 transition={{ type: "spring", duration: 0.8 }}
                 className="flex flex-col items-center w-full"
               >
-                {currentPlayer.photoUrl ? (
-                  <img src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-48 h-48 rounded-full object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] mb-6 bg-black/50" />
-                ) : (
-                  <div className="w-48 h-48 rounded-full bg-white/10 border-4 border-white/10 flex items-center justify-center text-7xl font-black text-white/20 mb-6">{currentPlayer.name.charAt(0)}</div>
-                )}
+                <div className="flex flex-col md:flex-row items-center gap-10 w-full mb-8">
+                  {currentPlayer.photoUrl ? (
+                    <img src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
+                  ) : (
+                    <div className="w-56 h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
+                  )}
 
-                <div className="text-xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role} &bull; {currentPlayer.country}</div>
-                <h2 className="text-7xl font-black uppercase tracking-tight text-center mb-8 leading-none" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
-                  {currentPlayer.name}
-                </h2>
+                  <div className="flex flex-col items-center md:items-start text-center md:text-left">
+                    <div className="text-2xl font-bold text-accent tracking-widest uppercase mb-4">{currentPlayer.role} &bull; {currentPlayer.country}</div>
+                    <h2 className="text-6xl lg:text-7xl font-black uppercase tracking-tight leading-none" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
+                      {currentPlayer.name}
+                    </h2>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full max-w-4xl relative">
                   {/* EDITING OVERLAY */}
@@ -696,15 +767,15 @@ export default function SpectatorView() {
         </div>
 
         {/* Right Sidebar */}
-        <div className="w-full xl:w-[380px] flex flex-col gap-5 shrink-0 pb-10 xl:pb-0">
+        <div className="w-full xl:w-[380px] flex flex-col gap-5 shrink-0 h-full pb-10 xl:pb-0">
 
           {/* Bid History */}
-          <div className="glass-panel rounded-[2rem] p-5 flex-1 flex flex-col overflow-hidden border border-white/10">
-            <h3 className="text-lg font-black uppercase tracking-widest mb-4 flex items-center gap-3 text-brand">
+          <div className="glass-panel rounded-[2rem] p-4 flex-none h-[180px] flex flex-col overflow-hidden border border-white/10 shrink-0">
+            <h3 className="text-lg font-black uppercase tracking-widest mb-3 flex items-center gap-3 text-brand">
               <TrendingUp className="w-5 h-5" /> Bid History
             </h3>
             <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
-              {bidHistory.map((bid, i) => (
+              {bidHistory.slice(0, 2).map((bid, i) => (
                 <motion.div
                   key={i}
                   initial={i === 0 ? { opacity: 0, x: 30 } : {}}
@@ -728,12 +799,12 @@ export default function SpectatorView() {
           </div>
 
           {/* Franchise Purses */}
-          <div className="glass-panel rounded-[2rem] p-5 flex flex-col overflow-hidden border border-white/10" style={{ maxHeight: '40%' }}>
-            <h3 className="text-lg font-black uppercase tracking-widest mb-4 flex items-center gap-3 text-accent">
+          <div className="glass-panel rounded-[2rem] p-4 flex-1 flex flex-col overflow-hidden border border-white/10">
+            <h3 className="text-lg font-black uppercase tracking-widest mb-3 flex items-center gap-3 text-accent shrink-0">
               <Shield className="w-5 h-5" /> Franchise Purses
             </h3>
             
-            <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+            <div className="flex-1 overflow-y-auto pr-2 space-y-2 custom-scrollbar pb-2">
               {teams.map(team => (
                 <button 
                   key={team.id} 
