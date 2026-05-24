@@ -24,7 +24,7 @@
     "multer": "^2.1.1",
     "prisma": "^5.22.0",
     "redis": "^5.12.1",
-    "shared": "^1.0.0",
+    "shared": "file:../shared",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3"
   },
