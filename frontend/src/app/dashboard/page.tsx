@@ -35,7 +35,7 @@ export default function Home() {
     setLoading(true);
     try {
       const token = await getToken();
-      const res = await fetch("http://localhost:4000/api/auctions", {
+      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}'}/api/auctions", {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (res.ok) {
@@ -53,7 +53,7 @@ export default function Home() {
     setCreating(true);
     try {
       const token = await getToken();
-      const res = await fetch("http://localhost:4000/api/auctions", {
+      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}'}/api/auctions", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ name: newAuctionName })
@@ -72,7 +72,7 @@ export default function Home() {
     if (!confirm("Delete this auction forever?")) return;
     try {
       const token = await getToken();
-      await fetch(`http://localhost:4000/api/auctions/${id}`, {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL || '${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}'}/api/auctions/${id}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });

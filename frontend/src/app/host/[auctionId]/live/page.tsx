@@ -84,13 +84,13 @@ export default function HostLiveView() {
   }, [isLoaded, userId, router]);
 
   const fetchTeams = () => {
-    fetch(`http://localhost:4000/api/public/auctions/${auctionId}/teams`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/teams`)
       .then(res => res.json())
       .then(data => setTeams(data));
   };
 
   const fetchUnsoldPlayers = () => {
-    fetch(`http://localhost:4000/api/public/auctions/${auctionId}/players`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players`)
       .then(res => res.json())
       .then(data => {
         setUnsoldPlayers(data.filter((p: any) => p.status === 'UNSOLD'));

@@ -41,13 +41,13 @@ export default function SpectatorView() {
   const router = useRouter();
 
   const fetchTeams = () => {
-    fetch(`http://localhost:4000/api/public/auctions/${auctionId}/teams`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/teams`)
       .then(res => res.json())
       .then(data => setTeams(data));
   };
 
   const fetchUnsoldPlayers = () => {
-    fetch(`http://localhost:4000/api/public/auctions/${auctionId}/players`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players`)
       .then(res => res.json())
       .then(data => {
         setUnsoldPlayers(data.filter((p: any) => p.status === 'UNSOLD'));
@@ -57,14 +57,14 @@ export default function SpectatorView() {
   useEffect(() => {
     fetchTeams();
     // Fetch auction info to detect COMPLETED status
-    fetch(`http://localhost:4000/api/public/auctions/${auctionId}`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}`)
       .then(res => res.json())
       .then(data => {
         setAuctionInfo(data);
         if (data.status === 'COMPLETED') {
           setIsEnded(true);
           // Fetch all players for results view
-          fetch(`http://localhost:4000/api/public/auctions/${auctionId}/players`)
+          fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players`)
             .then(r => r.json())
             .then(players => setAllPlayers(players));
         }

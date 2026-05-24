@@ -48,9 +48,9 @@ export default function AdminSetup() {
   const fetchData = async () => {
     try {
       const [tRes, pRes, aRes] = await Promise.all([
-        fetch(`http://localhost:4000/api/public/auctions/${auctionId}/teams`),
-        fetch(`http://localhost:4000/api/public/auctions/${auctionId}/players`),
-        fetch(`http://localhost:4000/api/public/auctions/${auctionId}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/teams`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players`),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}`)
       ]);
       setTeams(await tRes.json());
       setPlayers(await pRes.json());
@@ -74,7 +74,7 @@ export default function AdminSetup() {
 
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}/players/csv`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players/csv`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: formData,
@@ -103,7 +103,7 @@ export default function AdminSetup() {
 
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}/teams/csv`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/teams/csv`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` },
         body: formData,
@@ -132,7 +132,7 @@ export default function AdminSetup() {
         const photoForm = new FormData();
         photoForm.append("photo", pPhotoFile);
         const token = await getToken();
-        const uploadRes = await fetch("http://localhost:4000/api/auctions/upload-photo", {
+        const uploadRes = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/upload-photo", {
           method: "POST",
           headers: { "Authorization": `Bearer ${token}` },
           body: photoForm,
@@ -143,7 +143,7 @@ export default function AdminSetup() {
 
       // Step 2: Create player with photoUrl
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}/players`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ name: pName, country: "Unknown", role: pRole, basePrice: pPrice, category: "General", photoUrl }),
@@ -173,7 +173,7 @@ export default function AdminSetup() {
         const photoForm = new FormData();
         photoForm.append("photo", teamLogoFile);
         const token = await getToken();
-        const uploadRes = await fetch("http://localhost:4000/api/auctions/upload-photo", {
+        const uploadRes = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/upload-photo", {
           method: "POST",
           headers: { "Authorization": `Bearer ${token}` },
           body: photoForm,
@@ -183,7 +183,7 @@ export default function AdminSetup() {
       }
 
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}/teams`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/teams`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ name: teamName, shortName: teamShortName, budget: teamBudget, logoUrl }),
@@ -207,7 +207,7 @@ export default function AdminSetup() {
 
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}/players/${playerId}/reset`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players/${playerId}/reset`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -229,7 +229,7 @@ export default function AdminSetup() {
     setClearingPlayers(true);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}/players`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -252,7 +252,7 @@ export default function AdminSetup() {
     setClearingTeams(true);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}/teams`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/teams`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` }
       });
@@ -275,7 +275,7 @@ export default function AdminSetup() {
     setDeletingAuction(true);
     try {
       const token = await getToken();
-      const res = await fetch(`http://localhost:4000/api/auctions/${auctionId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}`, {
         method: "DELETE",
         headers: { "Authorization": `Bearer ${token}` },
       });
