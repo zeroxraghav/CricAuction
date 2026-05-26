@@ -41,6 +41,17 @@ export default function SpectatorView() {
   const [viewingTeam, setViewingTeam] = useState<any | null>(null);
   const router = useRouter();
 
+  const [playersLeft, setPlayersLeft] = useState(0);
+
+  const fetchPlayersLeft = () => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players`)
+      .then(res => res.json())
+      .then(data => {
+        setPlayersLeft(data.filter((p: any) => p.status === 'PENDING').length);
+      })
+      .catch(() => {});
+  };
+
   const fetchTeams = () => {
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/teams`)
       .then(res => res.json())
@@ -57,6 +68,7 @@ export default function SpectatorView() {
 
   useEffect(() => {
     fetchTeams();
+    fetchPlayersLeft();
     // Fetch auction info to detect COMPLETED status
     fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}`)
       .then(res => res.json())
@@ -90,6 +102,7 @@ export default function SpectatorView() {
       setHighestTeamName(state.highestBiddingTeamName || "");
       setStatus(state.status);
       setBidHistory(state.bidHistory || []);
+      fetchPlayersLeft();
     });
 
     socket.on(SocketEvents.BID_UPDATED, (bid: BidEntry) => {
@@ -110,6 +123,7 @@ export default function SpectatorView() {
         amount: info.amount,
       });
       fetchTeams();
+      fetchPlayersLeft();
       setTimeout(() => setSoldPopup(null), 5000);
     });
 
@@ -119,6 +133,7 @@ export default function SpectatorView() {
         teamName: "UNSOLD",
         amount: 0,
       });
+      fetchPlayersLeft();
       setTimeout(() => setSoldPopup(null), 5000);
     });
 
@@ -232,7 +247,7 @@ export default function SpectatorView() {
                     {i === 0 && <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-brand to-yellow-300" />}
                     <div className="text-xs text-gray-500 font-bold mb-2">#{i + 1}</div>
                     {p.photoUrl ? (
-                      <img src={p.photoUrl} alt={p.name} className="w-16 h-16 rounded-full object-cover mx-auto mb-3 border-2 border-white/20" />
+                      <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-16 h-16 rounded-full object-cover mx-auto mb-3 border-2 border-white/20" />
                     ) : (
                       <div className="w-16 h-16 rounded-full bg-white/10 border-2 border-white/20 mx-auto mb-3 flex items-center justify-center text-2xl font-black text-white/30">{p.name.charAt(0)}</div>
                     )}
@@ -298,7 +313,7 @@ export default function SpectatorView() {
                             {teamPlayers.map(p => (
                               <div key={p.id} className="bg-white/5 border border-white/10 p-3 rounded-xl flex items-center gap-3">
                                 {p.photoUrl ? (
-                                  <img src={p.photoUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-white/20" />
+                                  <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-10 h-10 rounded-full object-cover border border-white/20" />
                                 ) : (
                                   <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold text-white/40">{p.name.charAt(0)}</div>
                                 )}
@@ -327,7 +342,7 @@ export default function SpectatorView() {
                 {unsold.map(p => (
                   <div key={p.id} className="bg-white/5 border border-red-500/20 p-4 rounded-xl flex items-center gap-4">
                     {p.photoUrl ? (
-                      <img src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border border-white/20 opacity-60" />
+                      <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border border-white/20 opacity-60" />
                     ) : (
                       <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold text-white/30">{p.name.charAt(0)}</div>
                     )}
@@ -369,7 +384,7 @@ export default function SpectatorView() {
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               {p.photoUrl ? (
-                                <img src={p.photoUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover border border-white/20" />
+                                <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-8 h-8 rounded-full object-cover border border-white/20" />
                               ) : (
                                 <div className="w-8 h-8 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-xs font-bold text-white/40">{p.name.charAt(0)}</div>
                               )}
@@ -445,7 +460,7 @@ export default function SpectatorView() {
               {soldPopup.amount > 0 ? (
                 <div className="flex flex-col md:flex-row items-center justify-center gap-10">
                   {soldPopup.playerPhoto ? (
-                    <img src={soldPopup.playerPhoto} alt="" className="w-48 h-48 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_40px_rgba(212,175,55,0.3)] shrink-0" />
+                    <img referrerPolicy="no-referrer" src={soldPopup.playerPhoto} alt="" className="w-48 h-48 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_40px_rgba(212,175,55,0.3)] shrink-0" />
                   ) : (
                     <div className="w-48 h-48 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-7xl font-black text-white/20 shrink-0">{soldPopup.playerName.charAt(0)}</div>
                   )}
@@ -506,7 +521,7 @@ export default function SpectatorView() {
                   viewingTeam.players.map((p: any) => (
                     <div key={p.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center gap-4">
                       {p.photoUrl ? (
-                        <img src={p.photoUrl} alt={p.name} className="w-14 h-14 rounded-full object-cover border border-white/20" />
+                        <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-14 h-14 rounded-full object-cover border border-white/20" />
                       ) : (
                         <div className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-xl font-bold text-white/50">{p.name.charAt(0)}</div>
                       )}
@@ -561,7 +576,7 @@ export default function SpectatorView() {
                     {unsoldPlayers.map((p: any) => (
                       <div key={p.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center gap-4">
                         {p.photoUrl ? (
-                          <img src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border border-white/20" />
+                          <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border border-white/20" />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold text-white/50">{p.name.charAt(0)}</div>
                         )}
@@ -595,6 +610,10 @@ export default function SpectatorView() {
           <div className="flex items-center gap-2 text-gray-400 bg-white/5 px-4 py-2 rounded-full border border-white/10">
             <Users className="w-4 h-4" />
             <span className="font-bold">{viewersCount} <span className="font-normal opacity-70 hidden sm:inline">watching</span></span>
+          </div>
+          <div className="flex items-center gap-2 text-brand bg-brand/10 px-4 py-2 rounded-full border border-brand/20">
+            <Trophy className="w-4 h-4" />
+            <span className="font-bold">{playersLeft} <span className="font-normal opacity-70 hidden sm:inline">left</span></span>
           </div>
           <button 
             onClick={() => setShowUnsoldPopup(true)}
@@ -701,7 +720,7 @@ export default function SpectatorView() {
               >
                 <div className="flex flex-col md:flex-row items-center gap-10 w-full mb-8">
                   {currentPlayer.photoUrl ? (
-                    <img src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
+                    <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
                   ) : (
                     <div className="w-56 h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
                   )}

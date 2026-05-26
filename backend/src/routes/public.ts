@@ -37,7 +37,7 @@ router.get('/auctions/:id', async (req, res) => {
   try {
     const auction = await prisma.auction.findUnique({
       where: { id },
-      select: { id: true, name: true, status: true, createdAt: true }
+      select: { id: true, name: true, status: true, sport: true, createdAt: true }
     });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
     res.json(auction);

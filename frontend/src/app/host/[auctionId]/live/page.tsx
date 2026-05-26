@@ -33,6 +33,17 @@ export default function HostLiveView() {
   const [showEndPrompt, setShowEndPrompt] = useState(false);
   const [isEnded, setIsEnded] = useState(false);
 
+  const [playersLeft, setPlayersLeft] = useState(0);
+
+  const fetchPlayersLeft = () => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players`)
+      .then(res => res.json())
+      .then(data => {
+        setPlayersLeft(data.filter((p: any) => p.status === 'PENDING').length);
+      })
+      .catch(() => {});
+  };
+
 
   const [bidAmount, setBidAmount] = useState<number | "">("");
   const [selectedTeamId, setSelectedTeamId] = useState("");
@@ -109,7 +120,10 @@ export default function HostLiveView() {
       });
   };
 
-  useEffect(() => { fetchTeams(); }, []);
+  useEffect(() => { 
+    fetchTeams(); 
+    fetchPlayersLeft();
+  }, []);
 
   useEffect(() => {
     if (showUnsoldPopup) {
@@ -136,6 +150,7 @@ export default function HostLiveView() {
       setHighestTeamName(state.highestBiddingTeamName || "");
       setStatus(state.status);
       setBidHistory(state.bidHistory || []);
+      fetchPlayersLeft();
     });
 
     socket.on(SocketEvents.BID_UPDATED, (bid: BidEntry) => {
@@ -156,6 +171,7 @@ export default function HostLiveView() {
         amount: info.amount,
       });
       fetchTeams();
+      fetchPlayersLeft();
       setTimeout(() => setSoldPopup(null), 5000);
     });
 
@@ -165,6 +181,7 @@ export default function HostLiveView() {
         teamName: "UNSOLD",
         amount: 0,
       });
+      fetchPlayersLeft();
       setTimeout(() => setSoldPopup(null), 5000);
     });
 
@@ -271,7 +288,7 @@ export default function HostLiveView() {
               {soldPopup.amount > 0 ? (
                 <div className="flex flex-col md:flex-row items-center justify-center gap-10">
                   {soldPopup.playerPhoto ? (
-                    <img src={soldPopup.playerPhoto} alt="" className="w-48 h-48 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_40px_rgba(212,175,55,0.3)] shrink-0" />
+                    <img referrerPolicy="no-referrer" src={soldPopup.playerPhoto} alt="" className="w-48 h-48 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_40px_rgba(212,175,55,0.3)] shrink-0" />
                   ) : (
                     <div className="w-48 h-48 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-7xl font-black text-white/20 shrink-0">{soldPopup.playerName.charAt(0)}</div>
                   )}
@@ -332,7 +349,7 @@ export default function HostLiveView() {
                   viewingTeam.players.map((p: any) => (
                     <div key={p.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center gap-4">
                       {p.photoUrl ? (
-                        <img src={p.photoUrl} alt={p.name} className="w-14 h-14 rounded-full object-cover border border-white/20" />
+                        <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-14 h-14 rounded-full object-cover border border-white/20" />
                       ) : (
                         <div className="w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-xl font-bold text-white/50">{p.name.charAt(0)}</div>
                       )}
@@ -386,7 +403,7 @@ export default function HostLiveView() {
                     {unsoldPlayers.map((p: any) => (
                       <div key={p.id} className="bg-white/5 border border-white/10 p-4 rounded-xl flex items-center gap-4">
                         {p.photoUrl ? (
-                          <img src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border border-white/20" />
+                          <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border border-white/20" />
                         ) : (
                           <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-bold text-white/50">{p.name.charAt(0)}</div>
                         )}
@@ -420,21 +437,36 @@ export default function HostLiveView() {
         <div className="flex items-center gap-4">
           {/* HOST CONTROLS */}
           <div className="flex gap-2">
-             <button disabled={!!currentPlayer} onClick={() => socket?.emit(SocketEvents.NEXT_PLAYER, { auctionId })} className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+             <button 
+               onClick={() => {
+                 if (confirm("Are you sure you want to end this auction?")) {
+                   socket?.emit(SocketEvents.END_AUCTION, { auctionId });
+                 }
+               }}
+               className="relative group bg-red-500/20 text-red-500 border border-red-500/50 hover:bg-red-500/30 px-4 py-2 rounded-lg font-bold flex items-center gap-2"
+             >
+               <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">End Auction</span>
+               END AUCTION
+             </button>
+             <button disabled={!!currentPlayer} onClick={() => socket?.emit(SocketEvents.NEXT_PLAYER, { auctionId })} className="relative group bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+               <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Next Player</span>
                <SkipForward className="w-5 h-5"/> Next
              </button>
              {status !== 'IDLE' && (
                status === 'ACTIVE' ? (
-                 <button onClick={() => socket?.emit(SocketEvents.PAUSE_AUCTION, { auctionId })} className="bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 hover:bg-yellow-500/30 px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                 <button onClick={() => socket?.emit(SocketEvents.PAUSE_AUCTION, { auctionId })} className="relative group bg-yellow-500/20 text-yellow-500 border border-yellow-500/50 hover:bg-yellow-500/30 px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                   <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Pause Auction</span>
                    PAUSE
                  </button>
                ) : (
-                 <button onClick={() => socket?.emit(SocketEvents.RESUME_AUCTION, { auctionId })} className="bg-green-500/20 text-green-500 border border-green-500/50 hover:bg-green-500/30 px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                 <button onClick={() => socket?.emit(SocketEvents.RESUME_AUCTION, { auctionId })} className="relative group bg-green-500/20 text-green-500 border border-green-500/50 hover:bg-green-500/30 px-4 py-2 rounded-lg font-bold flex items-center gap-2">
+                   <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Resume Auction</span>
                    RESUME
                  </button>
                )
              )}
-             <button onClick={() => socket?.emit(SocketEvents.PLAYER_SOLD, { auctionId })} className="bg-brand text-black hover:bg-yellow-400 px-6 py-2 rounded-lg font-black tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+             <button onClick={() => socket?.emit(SocketEvents.PLAYER_SOLD, { auctionId })} className="relative group bg-brand text-black hover:bg-yellow-400 px-6 py-2 rounded-lg font-black tracking-wider shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+               <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Sell Player</span>
                SELL
              </button>
           </div>
@@ -442,9 +474,9 @@ export default function HostLiveView() {
              <button 
                onClick={() => socket?.emit(SocketEvents.REVERT_LAST_PLAYER, { auctionId })}
                disabled={status !== 'IDLE'} 
-               title="Undo Last Player (Sold/Unsold)"
-               className="bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 px-3 py-2 rounded-lg font-bold text-sm disabled:opacity-50"
+               className="relative group bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 px-3 py-2 rounded-lg font-bold text-sm disabled:opacity-50"
              >
+               <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Undo Last Player (Sold/Unsold)</span>
                Revert Player
              </button>
           </div>
@@ -459,21 +491,30 @@ export default function HostLiveView() {
            
            <button 
              onClick={copyLink}
-             className="flex items-center gap-2 text-brand hover:text-brand/80 bg-brand/10 hover:bg-brand/20 px-4 py-2 rounded-full transition border border-brand/20 ml-2"
+             className="relative group flex items-center gap-2 text-brand hover:text-brand/80 bg-brand/10 hover:bg-brand/20 px-4 py-2 rounded-full transition border border-brand/20 ml-2"
            >
+             <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Copy Invitation Link</span>
              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
              <span className="font-bold hidden sm:inline">{copied ? "Copied" : "Copy Link"}</span>
            </button>
 
-             <div className="flex items-center gap-2 text-gray-400 bg-white/5 px-4 py-2 rounded-full border border-white/10 ml-2">
+             <div className="relative group flex items-center gap-2 text-gray-400 bg-white/5 px-4 py-2 rounded-full border border-white/10 ml-2">
+               <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Live Spectators</span>
                <Users className="w-4 h-4" />
                <span className="font-bold">{viewersCount}</span>
              </div>
 
+             <div className="relative group flex items-center gap-2 text-brand bg-brand/10 px-4 py-2 rounded-full border border-brand/20 ml-2">
+               <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">Players Left to Auction</span>
+               <Trophy className="w-4 h-4" />
+               <span className="font-bold">{playersLeft} <span className="font-normal opacity-70 hidden sm:inline">left</span></span>
+             </div>
+
              <button 
                onClick={() => setShowUnsoldPopup(true)}
-               className="flex items-center gap-2 text-red-500 bg-red-500/10 hover:bg-red-500/20 transition cursor-pointer px-4 py-2 rounded-full border border-red-500/20 ml-2"
+               className="relative group flex items-center gap-2 text-red-500 bg-red-500/10 hover:bg-red-500/20 transition cursor-pointer px-4 py-2 rounded-full border border-red-500/20 ml-2"
              >
+               <span className="absolute top-full left-1/2 -translate-x-1/2 mt-3 px-3 py-1.5 text-xs font-bold rounded-lg bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-all pointer-events-none shadow-xl z-50">View Unsold Players</span>
                <span className="font-bold hidden sm:inline">Unsold</span>
              </button>
           </div>
@@ -557,7 +598,7 @@ export default function HostLiveView() {
               >
                 <div className="flex flex-col md:flex-row items-center gap-10 w-full mb-8">
                   {currentPlayer.photoUrl ? (
-                    <img src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
+                    <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
                   ) : (
                     <div className="w-56 h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
                   )}

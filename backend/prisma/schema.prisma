@@ -12,6 +12,12 @@ enum PlayerRole {
   BOWLER
   ALLROUNDER
   WICKETKEEPER
+  SETTER
+  SPIKER
+  LIBERO
+  BLOCKER
+  OPPOSITE
+  DEFENDER
 }
 
 enum PlayerStatus {
@@ -23,6 +29,7 @@ enum PlayerStatus {
 model Auction {
   id        String   @id @default(uuid())
   name      String
+  sport     String   @default("CRICKET") // CRICKET or VOLLEYBALL
   hostId    String   // Clerk User ID of the host
   status    String   @default("UPCOMING") // UPCOMING, ACTIVE, COMPLETED
   createdAt DateTime @default(now())

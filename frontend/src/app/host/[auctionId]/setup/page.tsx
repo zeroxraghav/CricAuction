@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Upload, Users, Shield, PlusCircle, UserPlus, PlayCircle, ImageIcon, ArrowLeft, RotateCcw } from "lucide-react";
+import { Upload, Users, Shield, PlusCircle, UserPlus, PlayCircle, ImageIcon, ArrowLeft, RotateCcw, Trash2, Pencil } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
@@ -25,14 +25,14 @@ export default function AdminSetup() {
   
   const [teamName, setTeamName] = useState("");
   const [teamShortName, setTeamShortName] = useState("");
-  const [teamBudget, setTeamBudget] = useState("850000000"); // 85 Cr default
+  const [teamBudget, setTeamBudget] = useState("10000000"); // 1 Cr default
   const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null);
   const [teamLogoPreview, setTeamLogoPreview] = useState<string>("");
   const [teamCreating, setTeamCreating] = useState(false);
 
   const [pName, setPName] = useState("");
   const [pRole, setPRole] = useState("BATSMAN");
-  const [pPrice, setPPrice] = useState("20000000");
+  const [pPrice, setPPrice] = useState("100000"); // 1 Lakh default
   const [pPhotoFile, setPPhotoFile] = useState<File | null>(null);
   const [pPhotoPreview, setPPhotoPreview] = useState<string>("");
   const [pAdding, setPAdding] = useState(false);
@@ -44,6 +44,8 @@ export default function AdminSetup() {
   const { getToken } = useAuth();
 
   const [auctionInfo, setAuctionInfo] = useState<any>(null);
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -54,7 +56,9 @@ export default function AdminSetup() {
       ]);
       setTeams(await tRes.json());
       setPlayers(await pRes.json());
-      setAuctionInfo(await aRes.json());
+      const aInfo = await aRes.json();
+      setAuctionInfo(aInfo);
+      if (aInfo?.sport === 'VOLLEYBALL') setPRole('SETTER');
     } catch (e) {
       console.error(e);
     }
@@ -64,6 +68,9 @@ export default function AdminSetup() {
     fetchData();
   }, []);
 
+  const [defaultTeamBudget, setDefaultTeamBudget] = useState("100000000");
+  const [defaultPlayerBasePrice, setDefaultPlayerBasePrice] = useState("100000");
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
@@ -71,6 +78,7 @@ export default function AdminSetup() {
     setUploading(true);
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("defaultBasePrice", defaultPlayerBasePrice);
 
     try {
       const token = await getToken();
@@ -100,6 +108,7 @@ export default function AdminSetup() {
     setUploadingTeamCsv(true);
     const formData = new FormData();
     formData.append("file", teamCsvFile);
+    formData.append("defaultBudget", defaultTeamBudget);
 
     try {
       const token = await getToken();
@@ -122,17 +131,63 @@ export default function AdminSetup() {
     setUploadingTeamCsv(false);
   };
 
+  const handleEditTeam = (team: any) => {
+    setEditingTeamId(team.id);
+    setTeamName(team.name);
+    setTeamShortName(team.shortName);
+    setTeamBudget(team.budget.toString());
+    setTeamLogoPreview(team.logoUrl || "");
+    setTeamLogoFile(null);
+
+    const formElement = document.getElementById("franchise-form");
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleCancelTeamEdit = () => {
+    setEditingTeamId(null);
+    setTeamName("");
+    setTeamShortName("");
+    setTeamBudget("10000000");
+    setTeamLogoFile(null);
+    setTeamLogoPreview("");
+  };
+
+  const handleEditPlayer = (player: any) => {
+    setEditingPlayerId(player.id);
+    setPName(player.name);
+    setPRole(player.role);
+    setPPrice(player.basePrice.toString());
+    setPPhotoPreview(player.photoUrl || "");
+    setPPhotoFile(null);
+
+    const formElement = document.getElementById("player-form");
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
+  const handleCancelPlayerEdit = () => {
+    setEditingPlayerId(null);
+    setPName("");
+    setPRole(auctionInfo?.sport === 'VOLLEYBALL' ? 'SETTER' : 'BATSMAN');
+    setPPrice("100000");
+    setPPhotoFile(null);
+    setPPhotoPreview("");
+  };
+
   const handleManualPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
     setPAdding(true);
     try {
       // Step 1: Upload photo if provided
-      let photoUrl = "";
+      let photoUrl = pPhotoPreview;
       if (pPhotoFile) {
         const photoForm = new FormData();
         photoForm.append("photo", pPhotoFile);
         const token = await getToken();
-        const uploadRes = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/upload-photo", {
+        const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/upload-photo`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${token}` },
           body: photoForm,
@@ -141,23 +196,30 @@ export default function AdminSetup() {
         if (uploadRes.ok) photoUrl = uploadData.photoUrl;
       }
 
-      // Step 2: Create player with photoUrl
+      // Step 2: Create or update player
       const token = await getToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players`, {
-        method: "POST",
+      const isEdit = !!editingPlayerId;
+      const url = isEdit
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players/${editingPlayerId}`
+        : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ name: pName, country: "Unknown", role: pRole, basePrice: pPrice, category: "General", photoUrl }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Success: Added ${data.player.name}`);
+        toast.success(isEdit ? `Success: Updated ${data.player.name}` : `Success: Added ${data.player.name}`);
         setPName(""); setPPhotoFile(null); setPPhotoPreview("");
+        setEditingPlayerId(null);
         fetchData();
       } else {
         toast.error(`Error: ${data.error}`);
       }
     } catch (err) {
-      toast.error("Failed to add player");
+      toast.error(editingPlayerId ? "Failed to update player" : "Failed to add player");
     }
     setPAdding(false);
   };
@@ -168,12 +230,12 @@ export default function AdminSetup() {
 
     try {
       // Step 1: Upload logo if provided
-      let logoUrl = "";
+      let logoUrl = teamLogoPreview;
       if (teamLogoFile) {
         const photoForm = new FormData();
         photoForm.append("photo", teamLogoFile);
         const token = await getToken();
-        const uploadRes = await fetch("${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/upload-photo", {
+        const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/upload-photo`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${token}` },
           body: photoForm,
@@ -183,21 +245,28 @@ export default function AdminSetup() {
       }
 
       const token = await getToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/teams`, {
-        method: "POST",
+      const isEdit = !!editingTeamId;
+      const url = isEdit
+        ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/teams/${editingTeamId}`
+        : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/teams`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ name: teamName, shortName: teamShortName, budget: teamBudget, logoUrl }),
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`Success: Team ${data.team.name} created!`);
+        toast.success(isEdit ? `Success: Team ${data.team.name} updated!` : `Success: Team ${data.team.name} created!`);
         setTeamName(""); setTeamShortName(""); setTeamLogoFile(null); setTeamLogoPreview("");
+        setEditingTeamId(null);
         fetchData();
       } else {
         toast.error(`Error: ${data.error}`);
       }
     } catch (err) {
-      toast.error("Failed to create team");
+      toast.error(editingTeamId ? "Failed to update team" : "Failed to create team");
     }
     setTeamCreating(false);
   };
@@ -269,8 +338,48 @@ export default function AdminSetup() {
     setClearingTeams(false);
   };
 
+  const handleDeletePlayer = async (playerId: string) => {
+    if (!confirm("Are you sure you want to delete this player? If sold, the team's purse will be refunded.")) return;
+    try {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/players/${playerId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        fetchData();
+      } else {
+        toast.error(data.error);
+      }
+    } catch (err) {
+      toast.error("Failed to delete player");
+    }
+  };
+
+  const handleDeleteTeam = async (teamId: string) => {
+    if (!confirm("Are you sure you want to delete this team?")) return;
+    try {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/teams/${teamId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(data.message);
+        fetchData();
+      } else {
+        toast.error(data.error);
+      }
+    } catch (err) {
+      toast.error("Failed to delete team");
+    }
+  };
+
   const handleDeleteAuction = async () => {
-    if (!confirm("Are you sure? This will delete all bids and kick everyone out. Players and Teams will remain in the database.")) return;
+    if (!confirm("Are you sure? This will permanently delete the auction, including ALL its players, teams, and bids. This action cannot be undone.")) return;
     
     setDeletingAuction(true);
     try {
@@ -296,7 +405,7 @@ export default function AdminSetup() {
     <div className="min-h-screen p-4 md:p-8 flex flex-col relative overflow-hidden bg-[#0a0f1a] text-white">
       <header className="flex flex-col md:flex-row justify-between items-center glass p-4 rounded-2xl mb-8 z-10 border border-brand/20 gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/" className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft className="text-gray-400" /></Link>
+          <Link href="/dashboard" className="p-2 hover:bg-white/10 rounded-full transition"><ArrowLeft className="text-gray-400" /></Link>
           <SettingsIcon />
           <h1 className="text-2xl font-bold tracking-widest uppercase">Auction Setup</h1>
         </div>
@@ -314,9 +423,9 @@ export default function AdminSetup() {
         <div className="xl:col-span-5 flex flex-col gap-8 h-full overflow-y-auto pr-2 custom-scrollbar">
           
           {/* Create Team Form */}
-          <div className="glass-panel p-6 rounded-3xl">
+          <div id="franchise-form" className="glass-panel p-6 rounded-3xl">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <Shield className="text-accent" /> Register Franchise
+              <Shield className="text-accent" /> {editingTeamId ? "Edit Franchise" : "Register Franchise"}
             </h2>
             <form onSubmit={handleCreateTeam} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
@@ -328,11 +437,11 @@ export default function AdminSetup() {
                 <div className="relative">
                   <label className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 px-4 cursor-pointer hover:border-accent/50 transition h-full">
                     {teamLogoPreview ? (
-                      <img src={teamLogoPreview} alt="Preview" className="w-6 h-6 rounded-md object-cover border border-white/20" />
+                      <img referrerPolicy="no-referrer" src={teamLogoPreview} alt="Preview" className="w-6 h-6 rounded-md object-cover border border-white/20" />
                     ) : (
                       <ImageIcon className="w-5 h-5 text-gray-400" />
                     )}
-                    <span className="text-gray-300 text-sm truncate">{teamLogoFile ? teamLogoFile.name : "Upload Logo (optional)"}</span>
+                    <span className="text-gray-300 text-sm truncate">{teamLogoFile ? teamLogoFile.name : (editingTeamId && teamLogoPreview ? "Change Logo (optional)" : "Upload Logo (optional)")}</span>
                     <input type="file" accept="image/*" className="hidden" onChange={e => {
                       const f = e.target.files?.[0] || null;
                       setTeamLogoFile(f);
@@ -343,8 +452,13 @@ export default function AdminSetup() {
                 </div>
               </div>
               <button type="submit" disabled={teamCreating} className="w-full py-3 rounded-xl bg-accent/20 border border-accent/50 text-accent font-bold hover:bg-accent/30 transition">
-                {teamCreating ? "Creating..." : "Create Team"}
+                {teamCreating ? (editingTeamId ? "Updating..." : "Creating...") : (editingTeamId ? "Update Team" : "Create Team")}
               </button>
+              {editingTeamId && (
+                <button type="button" onClick={handleCancelTeamEdit} className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 font-bold hover:bg-red-500/20 transition mt-2">
+                  Cancel Edit
+                </button>
+              )}
             </form>
           </div>
 
@@ -354,6 +468,12 @@ export default function AdminSetup() {
               <Upload className="text-gray-300" /> Bulk Upload Teams (CSV)
             </h2>
             <form onSubmit={handleTeamFileUpload} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2 font-semibold">
+                  Default Team Budget
+                </label>
+                <input type="number" required placeholder="100000000" value={defaultTeamBudget} onChange={e=>setDefaultTeamBudget(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
+              </div>
               <div className="border-2 border-dashed border-white/20 p-6 rounded-xl flex flex-col items-center justify-center hover:border-accent/50 transition cursor-pointer relative">
                 <span className="text-gray-300 font-semibold text-sm">{teamCsvFile ? teamCsvFile.name : "Drop CSV here"}</span>
                 <input type="file" accept=".csv" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setTeamCsvFile(e.target.files?.[0] || null)} />
@@ -365,9 +485,9 @@ export default function AdminSetup() {
           </div>
 
           {/* Add Player Manually */}
-          <div className="glass-panel p-6 rounded-3xl">
+          <div id="player-form" className="glass-panel p-6 rounded-3xl">
             <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <UserPlus className="text-brand" /> Add Player Manually
+              <UserPlus className="text-brand" /> {editingPlayerId ? "Edit Player Details" : "Add Player Manually"}
             </h2>
             <form onSubmit={handleManualPlayer} className="space-y-4">
                <div className="grid grid-cols-1 gap-4">
@@ -375,21 +495,34 @@ export default function AdminSetup() {
                </div>
                <div className="grid grid-cols-2 gap-4">
                  <select value={pRole} onChange={e=>setPRole(e.target.value)} className="bg-[#111827] border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none">
-                   <option value="BATSMAN">Batsman</option>
-                   <option value="BOWLER">Bowler</option>
-                   <option value="ALLROUNDER">All-Rounder</option>
-                   <option value="WICKETKEEPER">Wicket Keeper</option>
+                   {auctionInfo?.sport === 'VOLLEYBALL' ? (
+                     <>
+                       <option value="SETTER">Setter</option>
+                       <option value="SPIKER">Spiker</option>
+                       <option value="LIBERO">Libero</option>
+                       <option value="BLOCKER">Blocker</option>
+                       <option value="OPPOSITE">Opposite</option>
+                       <option value="DEFENDER">Defender</option>
+                     </>
+                   ) : (
+                     <>
+                       <option value="BATSMAN">Batsman</option>
+                       <option value="BOWLER">Bowler</option>
+                       <option value="ALLROUNDER">All-Rounder</option>
+                       <option value="WICKETKEEPER">Wicket Keeper</option>
+                     </>
+                   )}
                  </select>
                  <input type="number" required placeholder="Base Price" value={pPrice} onChange={e=>setPPrice(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
                </div>
                <div className="relative">
                  <label className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 px-4 cursor-pointer hover:border-brand/50 transition">
                    {pPhotoPreview ? (
-                     <img src={pPhotoPreview} alt="Preview" className="w-10 h-10 rounded-full object-cover border border-white/20" />
+                     <img referrerPolicy="no-referrer" src={pPhotoPreview} alt="Preview" className="w-10 h-10 rounded-full object-cover border border-white/20" />
                    ) : (
                      <ImageIcon className="w-5 h-5 text-gray-400" />
                    )}
-                   <span className="text-gray-300 text-sm truncate">{pPhotoFile ? pPhotoFile.name : "Upload Player Photo (optional)"}</span>
+                   <span className="text-gray-300 text-sm truncate">{pPhotoFile ? pPhotoFile.name : (editingPlayerId && pPhotoPreview ? "Change Photo (optional)" : "Upload Player Photo (optional)")}</span>
                    <input type="file" accept="image/*" className="hidden" onChange={e => {
                      const f = e.target.files?.[0] || null;
                      setPPhotoFile(f);
@@ -399,8 +532,13 @@ export default function AdminSetup() {
                  </label>
                </div>
                <button type="submit" disabled={pAdding} className="w-full py-3 rounded-xl bg-white/10 text-white font-bold hover:bg-white/20 transition">
-                {pAdding ? "Adding..." : "Add Player to Database"}
+                {pAdding ? (editingPlayerId ? "Updating..." : "Adding...") : (editingPlayerId ? "Update Player" : "Add Player to Database")}
               </button>
+              {editingPlayerId && (
+                <button type="button" onClick={handleCancelPlayerEdit} className="w-full py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 font-bold hover:bg-red-500/20 transition mt-2">
+                  Cancel Edit
+                </button>
+              )}
             </form>
           </div>
 
@@ -410,6 +548,12 @@ export default function AdminSetup() {
               <Upload className="text-gray-300" /> Bulk Upload Players (CSV)
             </h2>
             <form onSubmit={handleFileUpload} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-2 font-semibold">
+                  Default Player Base Price
+                </label>
+                <input type="number" required placeholder="100000" value={defaultPlayerBasePrice} onChange={e=>setDefaultPlayerBasePrice(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
+              </div>
               <div className="border-2 border-dashed border-white/20 p-6 rounded-xl flex flex-col items-center justify-center hover:border-brand/50 transition cursor-pointer relative">
                 <span className="text-gray-300 font-semibold text-sm">{file ? file.name : "Drop CSV here"}</span>
                 <input type="file" accept=".csv" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => setFile(e.target.files?.[0] || null)} />
@@ -420,24 +564,6 @@ export default function AdminSetup() {
             </form>
           </div>
 
-          {/* Danger Zone */}
-          <div className="glass-panel p-6 rounded-3xl border-red-500/30">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-red-500">
-              Danger Zone
-            </h2>
-            <div className="bg-red-500/10 p-4 rounded-xl border border-red-500/20 mb-4">
-              <p className="text-sm text-gray-300">
-                Deleting the auction will erase all bids and kick all spectators out immediately. Teams and players will remain in the database.
-              </p>
-            </div>
-            <button 
-              onClick={handleDeleteAuction}
-              disabled={deletingAuction}
-              className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold transition disabled:opacity-50"
-            >
-              {deletingAuction ? "Deleting..." : "Delete Live Auction"}
-            </button>
-          </div>
 
         </div>
 
@@ -459,26 +585,58 @@ export default function AdminSetup() {
              </div>
              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
                {players.map(p => (
-                 <div key={p.id} className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-white/30 transition relative group">
+                 <div key={p.id} className="bg-white/5 border border-white/10 p-3 rounded-2xl flex items-center gap-3 hover:border-white/30 transition relative group">
                    {p.photoUrl ? (
-                     <img src={p.photoUrl} alt={p.name} className="w-16 h-16 rounded-full object-cover border-2 border-white/10 bg-black/50" />
+                     <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border-2 border-white/10 bg-black/50 flex-shrink-0" />
                    ) : (
-                     <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center font-black text-xl text-white/50 border-2 border-white/5">{p.name.charAt(0)}</div>
+                     <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center font-black text-lg text-white/50 border-2 border-white/5 flex-shrink-0">{p.name.charAt(0)}</div>
                    )}
-                   <div className="overflow-hidden flex-1">
-                     <div className="font-bold truncate text-white">{p.name} <span className="text-xs ml-2 text-gray-500 uppercase">({p.status})</span></div>
+                   <div className="overflow-hidden flex-1 min-w-0">
+                     <div className="font-bold truncate text-white text-sm">{p.name}</div>
                      <div className="text-xs text-brand font-semibold">{p.role}</div>
                      <div className="text-xs text-gray-400">₹{p.basePrice.toLocaleString("en-IN")}</div>
                    </div>
-                   {p.status !== 'PENDING' && (
+                   <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="relative group/badge">
+                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black border cursor-default ${
+                          p.status === 'SOLD' 
+                            ? 'bg-green-500/20 text-green-400 border-green-500/40' 
+                            : p.status === 'UNSOLD'
+                              ? 'bg-red-500/20 text-red-400 border-red-500/40'
+                              : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40'
+                        }`}>
+                          {p.status === 'SOLD' ? 'S' : p.status === 'UNSOLD' ? 'U' : 'P'}
+                        </span>
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-[10px] font-bold rounded-md bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover/badge:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                          {p.status === 'SOLD' ? 'Sold' : p.status === 'UNSOLD' ? 'Unsold' : 'Pending'}
+                        </span>
+                      </div>
+                      {p.status !== 'SOLD' && (
+                        <button
+                          onClick={() => handleEditPlayer(p)}
+                          title="Edit Player"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition border border-blue-500/30 opacity-0 group-hover:opacity-100"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                     {p.status !== 'PENDING' && (
+                       <button
+                         onClick={() => handleResetPlayer(p.id)}
+                         title="Reset Player"
+                         className="w-7 h-7 rounded-lg flex items-center justify-center bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 opacity-0 group-hover:opacity-100"
+                       >
+                         <RotateCcw className="w-3.5 h-3.5" />
+                       </button>
+                     )}
                      <button
-                       onClick={() => handleResetPlayer(p.id)}
-                       title="Reset Player"
-                       className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition absolute right-4 opacity-0 group-hover:opacity-100"
+                       onClick={() => handleDeletePlayer(p.id)}
+                       title="Delete Player"
+                       className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 transition border border-red-500/30 opacity-0 group-hover:opacity-100"
                      >
-                       <RotateCcw className="w-5 h-5" />
+                       <Trash2 className="w-3.5 h-3.5" />
                      </button>
-                   )}
+                   </div>
                  </div>
                ))}
                {players.length === 0 && <div className="col-span-full text-center text-gray-500 py-10">No players added yet</div>}
@@ -500,16 +658,30 @@ export default function AdminSetup() {
              </div>
              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
                {teams.map(t => (
-                 <div key={t.id} className="bg-white/5 border border-white/10 p-4 rounded-2xl flex items-center gap-4 hover:border-accent/30 transition">
+                 <div key={t.id} className="bg-white/5 border border-white/10 p-3 rounded-2xl flex items-center gap-3 hover:border-accent/30 transition group">
                    {t.logoUrl ? (
-                     <img src={t.logoUrl} alt={t.name} className="w-14 h-14 rounded-xl object-contain bg-white/10 p-1" />
+                     <img referrerPolicy="no-referrer" src={t.logoUrl} alt={t.name} className="w-12 h-12 rounded-xl object-contain bg-white/10 p-1 flex-shrink-0" />
                    ) : (
-                     <div className="w-14 h-14 rounded-xl bg-white/10 flex items-center justify-center font-black text-xl text-white/50">{t.shortName}</div>
+                     <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center font-black text-lg text-white/50 flex-shrink-0">{t.shortName}</div>
                    )}
-                   <div className="overflow-hidden">
-                     <div className="font-bold truncate text-white">{t.shortName}</div>
+                   <div className="overflow-hidden flex-1 min-w-0">
+                     <div className="font-bold truncate text-white text-sm">{t.shortName}</div>
                      <div className="text-xs text-gray-400">₹{t.budget.toLocaleString("en-IN")}</div>
                    </div>
+                    <button
+                      onClick={() => handleEditTeam(t)}
+                      title="Edit Team"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37]/20 transition border border-[#D4AF37]/30 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                   <button
+                     onClick={() => handleDeleteTeam(t.id)}
+                     title="Delete Team"
+                     className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 transition border border-red-500/30 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                   >
+                     <Trash2 className="w-3.5 h-3.5" />
+                   </button>
                  </div>
                ))}
                {teams.length === 0 && <div className="col-span-full text-center text-gray-500 py-10">No teams registered yet</div>}

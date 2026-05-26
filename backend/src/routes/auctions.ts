@@ -22,6 +22,26 @@ const photoStorage = multer.diskStorage({
 });
 const photoUpload = multer({ storage: photoStorage, limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
 
+function convertGoogleDriveUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes('drive.google.com')) {
+    let fileId = '';
+    const openMatch = url.match(/[?&]id=([^&]+)/);
+    if (openMatch && openMatch[1]) {
+      fileId = openMatch[1];
+    } else {
+      const fileDMatch = url.match(/\/file\/d\/([^\/]+)/);
+      if (fileDMatch && fileDMatch[1]) {
+        fileId = fileDMatch[1];
+      }
+    }
+    if (fileId) {
+      return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+    }
+  }
+  return url;
+}
+
 // Require authentication for all host routes
 router.use((req: any, res: any, next: any) => {
   try {
@@ -55,12 +75,13 @@ router.get('/', async (req: any, res: any) => {
 // POST create auction
 router.post('/', async (req: any, res: any) => {
   const hostId = req.auth.userId;
-  const { name } = req.body;
-  console.log('Create auction attempt for hostId:', hostId, 'name:', name);
+  const { name, sport } = req.body;
+  console.log('Create auction attempt for hostId:', hostId, 'name:', name, 'sport:', sport);
   if (!name) return res.status(400).json({ error: 'Auction name required' });
+  const auctionSport = sport === 'VOLLEYBALL' ? 'VOLLEYBALL' : 'CRICKET';
   try {
     const auction = await prisma.auction.create({
-      data: { name, hostId, status: 'UPCOMING' }
+      data: { name, sport: auctionSport, hostId, status: 'UPCOMING' }
     });
     res.json(auction);
   } catch (err) {
@@ -106,20 +127,51 @@ router.post('/:id/players/csv', csvUpload.single('file'), async (req: any, res: 
   const auction = await prisma.auction.findUnique({ where: { id, hostId } });
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
+  const defaultBasePriceValue = parseFloat(req.body.defaultBasePrice) || 100000;
+
   const results: any[] = [];
   fs.createReadStream(req.file.path)
     .pipe(parse({ columns: true, skip_empty_lines: true }))
     .on('data', (data: any) => results.push(data))
     .on('end', async () => {
       try {
-        const validPlayers = results.map(row => ({
-          name: row.name,
-          country: row.country || 'Unknown',
-          role: (row.role?.toUpperCase() || 'BATSMAN') as PlayerRole,
-          basePrice: parseInt(row.basePrice) || 2000000,
-          category: row.category || 'General',
-          auctionId: id
-        }));
+        const defaultRole = auction.sport === 'VOLLEYBALL' ? 'SETTER' : 'BATSMAN';
+        if (results.length > 0) {
+          console.log('Player CSV - first row raw keys:', Object.keys(results[0]));
+        }
+        const validPlayers = results.map(row => {
+          const normalized: any = {};
+          for (const key of Object.keys(row)) {
+            const cleanKey = key.replace(/^\ufeff/, '').toLowerCase().trim().replace(/[\s_-]+/g, '');
+            const val = row[key];
+            normalized[cleanKey] = typeof val === 'string' ? val.trim() : val;
+          }
+
+          const name = normalized.name || normalized.playername || normalized.player || '';
+          let roleInput = normalized.role?.toUpperCase()?.replace(/\s+/g, '')?.replace(/[-_]/g, '') || defaultRole;
+          
+          if (roleInput === 'WICKETKEEPER' || roleInput === 'WK' || roleInput === 'WICKET-KEEPER') roleInput = 'WICKETKEEPER';
+          if (roleInput === 'ALLROUNDER' || roleInput === 'AR' || roleInput === 'ALL-ROUNDER') roleInput = 'ALLROUNDER';
+          
+          const validRoles = ['BATSMAN', 'BOWLER', 'ALLROUNDER', 'WICKETKEEPER', 'SETTER', 'SPIKER', 'LIBERO', 'BLOCKER', 'OPPOSITE', 'DEFENDER'];
+          if (!validRoles.includes(roleInput)) {
+            roleInput = defaultRole;
+          }
+          const photoUrl = convertGoogleDriveUrl(normalized.photourl || normalized.photo || normalized.imageurl || normalized.image);
+          const country = normalized.country || 'Unknown';
+          const basePrice = parseInt(normalized.baseprice) || defaultBasePriceValue;
+          const category = normalized.category || 'General';
+
+          return {
+            name,
+            photoUrl,
+            country,
+            role: roleInput as PlayerRole,
+            basePrice,
+            category,
+            auctionId: id
+          };
+        });
 
         await prisma.player.createMany({ data: validPlayers, skipDuplicates: true });
         fs.unlinkSync(req.file.path);
@@ -142,18 +194,34 @@ router.post('/:id/teams/csv', csvUpload.single('file'), async (req: any, res: an
   const auction = await prisma.auction.findUnique({ where: { id, hostId } });
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
+  const defaultBudgetValue = parseFloat(req.body.defaultBudget) || 10000000;
+
   const results: any[] = [];
   fs.createReadStream(req.file.path)
     .pipe(parse({ columns: true, skip_empty_lines: true }))
     .on('data', (data: any) => results.push(data))
     .on('end', async () => {
       try {
+        if (results.length > 0) {
+          console.log('Team CSV - first row raw keys:', Object.keys(results[0]));
+        }
         const validTeams = results.map(row => {
-          const budget = parseInt(row.budget) || 850000000;
+          const normalized: any = {};
+          for (const key of Object.keys(row)) {
+            const cleanKey = key.replace(/^\ufeff/, '').toLowerCase().trim().replace(/[\s_-]+/g, '');
+            const val = row[key];
+            normalized[cleanKey] = typeof val === 'string' ? val.trim() : val;
+          }
+
+          const name = normalized.name || normalized.teamname || normalized.team || '';
+          const shortName = normalized.shortname || normalized.teamshortname || normalized.short || normalized.code || '';
+          const budget = parseInt(normalized.budget) || defaultBudgetValue;
+          const logoUrl = convertGoogleDriveUrl(normalized.logourl || normalized.logo || normalized.imageurl || normalized.image);
+
           return {
-            name: row.name,
-            shortName: row.shortName,
-            logoUrl: row.logoUrl || null,
+            name,
+            shortName,
+            logoUrl,
             budget: budget,
             remainingPurse: budget,
             auctionId: id
@@ -181,7 +249,7 @@ router.post('/:id/teams', async (req: any, res: any) => {
 
     const team = await prisma.team.create({
       data: {
-        name, shortName, logoUrl,
+        name, shortName, logoUrl: convertGoogleDriveUrl(logoUrl),
         budget: parseFloat(budget),
         remainingPurse: parseFloat(budget),
         auctionId: id
@@ -191,6 +259,43 @@ router.post('/:id/teams', async (req: any, res: any) => {
   } catch (err: any) {
     if (err.code === 'P2002') return res.status(400).json({ error: 'Team name/short name already exists in this auction' });
     res.status(500).json({ error: 'Failed to create team' });
+  }
+});
+
+// Update Team for specific auction
+router.put('/:id/teams/:teamId', async (req: any, res: any) => {
+  const { id, teamId } = req.params;
+  const hostId = req.auth.userId;
+  const { name, shortName, budget, logoUrl } = req.body;
+
+  try {
+    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    if (!auction) return res.status(404).json({ error: 'Auction not found' });
+
+    const team = await prisma.team.findUnique({ where: { id: teamId, auctionId: id } });
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+
+    const newBudget = parseFloat(budget);
+    const spent = team.budget - team.remainingPurse;
+    if (newBudget < spent) {
+      return res.status(400).json({ error: `Budget cannot be less than the amount already spent (${spent})` });
+    }
+    const newRemainingPurse = team.remainingPurse + (newBudget - team.budget);
+
+    const updatedTeam = await prisma.team.update({
+      where: { id: teamId },
+      data: {
+        name,
+        shortName,
+        logoUrl: convertGoogleDriveUrl(logoUrl),
+        budget: newBudget,
+        remainingPurse: newRemainingPurse
+      }
+    });
+    res.json({ message: 'Team updated successfully', team: updatedTeam });
+  } catch (err: any) {
+    if (err.code === 'P2002') return res.status(400).json({ error: 'Team name/short name already exists in this auction' });
+    res.status(500).json({ error: 'Failed to update team' });
   }
 });
 
@@ -206,7 +311,7 @@ router.post('/:id/players', async (req: any, res: any) => {
 
     const player = await prisma.player.create({
       data: {
-        name, photoUrl, country, role,
+        name, photoUrl: convertGoogleDriveUrl(photoUrl), country, role,
         basePrice: parseFloat(basePrice),
         category, status: 'PENDING',
         auctionId: id
@@ -215,6 +320,100 @@ router.post('/:id/players', async (req: any, res: any) => {
     res.json({ message: 'Player added successfully', player });
   } catch (err) {
     res.status(500).json({ error: 'Failed to add player' });
+  }
+});
+
+// Update Player for specific auction
+router.put('/:id/players/:playerId', async (req: any, res: any) => {
+  const { id, playerId } = req.params;
+  const hostId = req.auth.userId;
+  const { name, country, role, basePrice, category, photoUrl } = req.body;
+
+  try {
+    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    if (!auction) return res.status(404).json({ error: 'Auction not found' });
+
+    const player = await prisma.player.findUnique({ where: { id: playerId, auctionId: id } });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    if (player.status === 'SOLD') {
+      return res.status(400).json({ error: 'Cannot edit a player who has already been sold' });
+    }
+
+    const updatedPlayer = await prisma.player.update({
+      where: { id: playerId },
+      data: {
+        name,
+        country,
+        role,
+        basePrice: parseFloat(basePrice),
+        category,
+        photoUrl: convertGoogleDriveUrl(photoUrl)
+      }
+    });
+    res.json({ message: 'Player updated successfully', player: updatedPlayer });
+  } catch (err) {
+    console.error("Update player error:", err);
+    res.status(500).json({ error: 'Failed to update player' });
+  }
+});
+
+// Delete a single player
+router.delete('/:id/players/:playerId', async (req: any, res: any) => {
+  const { id, playerId } = req.params;
+  const hostId = req.auth.userId;
+
+  try {
+    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    if (!auction) return res.status(404).json({ error: 'Auction not found' });
+
+    const player = await prisma.player.findUnique({ where: { id: playerId, auctionId: id } });
+    if (!player) return res.status(404).json({ error: 'Player not found' });
+
+    await prisma.$transaction(async (tx) => {
+      // If SOLD, refund the team
+      if (player.status === 'SOLD' && player.teamId && player.soldPrice) {
+        await tx.team.update({
+          where: { id: player.teamId },
+          data: { remainingPurse: { increment: player.soldPrice } }
+        });
+      }
+      // Delete all bids for this player
+      await tx.bid.deleteMany({ where: { playerId: player.id } });
+      // Delete the player
+      await tx.player.delete({ where: { id: player.id } });
+    });
+
+    res.json({ message: `Player ${player.name} deleted successfully` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete player' });
+  }
+});
+
+// Delete a single team
+router.delete('/:id/teams/:teamId', async (req: any, res: any) => {
+  const { id, teamId } = req.params;
+  const hostId = req.auth.userId;
+
+  try {
+    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    if (!auction) return res.status(404).json({ error: 'Auction not found' });
+
+    const team = await prisma.team.findUnique({ where: { id: teamId, auctionId: id } });
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+
+    // Check if any players are sold to this team
+    const soldToTeam = await prisma.player.count({ where: { teamId: teamId, status: 'SOLD' } });
+    if (soldToTeam > 0) {
+      return res.status(400).json({ error: 'Cannot delete team: Players are sold to this team. Reset them first.' });
+    }
+
+    await prisma.team.delete({ where: { id: teamId } });
+    res.json({ message: `Team ${team.name} deleted successfully` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete team' });
   }
 });
 
