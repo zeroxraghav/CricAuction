@@ -94,7 +94,7 @@ export default function Home() {
           <div className="mx-auto w-20 h-20 bg-brand/20 rounded-full flex items-center justify-center mb-6">
             <Trophy className="w-10 h-10 text-brand" />
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold mb-4">Host Your Own <span className="text-brand">Cricket Auction</span></h1>
+          <h1 className="text-4xl md:text-6xl font-bold mb-4">Host Your Own <span className="text-brand">Sports Auction</span></h1>
           <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">Create an account to host real-time broadcast-style auctions for your friends.</p>
           <div className="text-xl font-bold text-brand animate-pulse">Sign in above to get started!</div>
         </motion.div>

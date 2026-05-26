@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSocket } from "@/hooks/useSocket";
 import { SocketEvents, Player } from "shared";
 import { Shield, Trophy, IndianRupee, TrendingUp, X, SkipForward, Users, Clock, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
+import confetti from "canvas-confetti";
 
-const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+const fmt = (n: number) => `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 2 })}L`;
 
 interface BidEntry { teamId: string; teamName: string; amount: number }
 
@@ -125,6 +126,11 @@ export default function SpectatorView() {
       fetchTeams();
       fetchPlayersLeft();
       setTimeout(() => setSoldPopup(null), 5000);
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
     });
 
     socket.on(SocketEvents.PLAYER_UNSOLD, (info: any) => {
@@ -633,6 +639,7 @@ export default function SpectatorView() {
 
       {/* (NOT LIVE OVERLAY REMOVED AS REQUESTED) */}
 
+      <main className="flex-1 flex flex-col xl:flex-row p-4 md:p-6 gap-6 z-10 min-h-[calc(100vh-100px)] xl:h-[calc(100vh-100px)] overflow-y-auto xl:overflow-hidden relative">
       {/* STATS MODAL (PAUSED) */}
       <AnimatePresence>
         {status === 'PAUSED' && (
@@ -641,7 +648,6 @@ export default function SpectatorView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-40 bg-black/95 backdrop-blur-md flex flex-col items-center justify-start p-4 lg:p-6"
-            style={{ top: '88px' }}
           >
             <div className="w-full max-w-[95vw] h-full max-h-full flex flex-col pb-4">
               <div className="flex items-center gap-4 mb-6 shrink-0">
@@ -703,8 +709,6 @@ export default function SpectatorView() {
         )}
       </AnimatePresence>
 
-      <main className="flex-1 flex flex-col xl:flex-row p-4 md:p-6 gap-6 z-10 min-h-[calc(100vh-100px)] xl:h-[calc(100vh-100px)] overflow-y-auto xl:overflow-hidden">
-        
         {/* Left: Player Presentation */}
         <div className="w-full xl:flex-1 flex flex-col justify-center items-center relative glass-panel rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 border border-white/10 overflow-hidden shrink-0">
           

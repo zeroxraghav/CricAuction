@@ -50,3 +50,24 @@ body {
 .animate-pulse-glow {
   animation: pulse-glow 2s infinite;
 }
+
+/* Touch and Mobile adjustments */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom Scrollbar for better mobile/desktop experience */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

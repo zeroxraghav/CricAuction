@@ -33,7 +33,7 @@ export default function LandingPage() {
           transition={{ delay: 0.2, duration: 0.8 }}
           className="text-6xl md:text-8xl font-black uppercase tracking-tight mb-6 text-glow leading-tight"
         >
-          The Ultimate <br/><span className="text-brand">Cricket Auction</span>
+          The Ultimate <br/><span className="text-brand">Sports Auction</span>
         </motion.h1>
 
         <motion.p 
@@ -42,7 +42,7 @@ export default function LandingPage() {
           transition={{ delay: 0.4, duration: 0.8 }}
           className="text-xl md:text-2xl text-gray-400 max-w-3xl mb-12"
         >
-          Host professional, broadcast-quality IPL-style auctions with real-time syncing, dynamic team wallets, and a stunning spectator view.
+          Host professional, broadcast-quality auctions with real-time syncing, dynamic team wallets, and a stunning spectator view.
         </motion.p>
 
         <motion.div

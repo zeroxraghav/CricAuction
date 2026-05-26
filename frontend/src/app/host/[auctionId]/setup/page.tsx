@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Upload, Users, Shield, PlusCircle, UserPlus, PlayCircle, ImageIcon, ArrowLeft, RotateCcw, Trash2, Pencil } from "lucide-react";
+import { Upload, Users, Shield, PlusCircle, UserPlus, PlayCircle, ImageIcon, ArrowLeft, RotateCcw, Trash2, Pencil, Download } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+
+const fmt = (n: number) => (n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 2 }) + 'L';
 
 export default function AdminSetup() {
   const router = useRouter();
@@ -25,14 +27,14 @@ export default function AdminSetup() {
   
   const [teamName, setTeamName] = useState("");
   const [teamShortName, setTeamShortName] = useState("");
-  const [teamBudget, setTeamBudget] = useState("10000000"); // 1 Cr default
+  const [teamBudget, setTeamBudget] = useState("100"); // 100 Lakhs = 1 Cr default
   const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null);
   const [teamLogoPreview, setTeamLogoPreview] = useState<string>("");
   const [teamCreating, setTeamCreating] = useState(false);
 
   const [pName, setPName] = useState("");
   const [pRole, setPRole] = useState("BATSMAN");
-  const [pPrice, setPPrice] = useState("100000"); // 1 Lakh default
+  const [pPrice, setPPrice] = useState("1"); // 1 Lakh default
   const [pPhotoFile, setPPhotoFile] = useState<File | null>(null);
   const [pPhotoPreview, setPPhotoPreview] = useState<string>("");
   const [pAdding, setPAdding] = useState(false);
@@ -46,6 +48,8 @@ export default function AdminSetup() {
   const [auctionInfo, setAuctionInfo] = useState<any>(null);
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const [playerFilter, setPlayerFilter] = useState("ALL");
+  const [teamFilter, setTeamFilter] = useState("ALL");
 
   const fetchData = async () => {
     try {
@@ -68,8 +72,8 @@ export default function AdminSetup() {
     fetchData();
   }, []);
 
-  const [defaultTeamBudget, setDefaultTeamBudget] = useState("100000000");
-  const [defaultPlayerBasePrice, setDefaultPlayerBasePrice] = useState("100000");
+  const [defaultTeamBudget, setDefaultTeamBudget] = useState("100");
+  const [defaultPlayerBasePrice, setDefaultPlayerBasePrice] = useState("1");
 
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +139,7 @@ export default function AdminSetup() {
     setEditingTeamId(team.id);
     setTeamName(team.name);
     setTeamShortName(team.shortName);
-    setTeamBudget(team.budget.toString());
+    setTeamBudget((team.budget / 100000).toString());
     setTeamLogoPreview(team.logoUrl || "");
     setTeamLogoFile(null);
 
@@ -149,7 +153,7 @@ export default function AdminSetup() {
     setEditingTeamId(null);
     setTeamName("");
     setTeamShortName("");
-    setTeamBudget("10000000");
+    setTeamBudget("100");
     setTeamLogoFile(null);
     setTeamLogoPreview("");
   };
@@ -158,7 +162,7 @@ export default function AdminSetup() {
     setEditingPlayerId(player.id);
     setPName(player.name);
     setPRole(player.role);
-    setPPrice(player.basePrice.toString());
+    setPPrice((player.basePrice / 100000).toString());
     setPPhotoPreview(player.photoUrl || "");
     setPPhotoFile(null);
 
@@ -172,7 +176,7 @@ export default function AdminSetup() {
     setEditingPlayerId(null);
     setPName("");
     setPRole(auctionInfo?.sport === 'VOLLEYBALL' ? 'SETTER' : 'BATSMAN');
-    setPPrice("100000");
+    setPPrice("1");
     setPPhotoFile(null);
     setPPhotoPreview("");
   };
@@ -207,7 +211,7 @@ export default function AdminSetup() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ name: pName, country: "Unknown", role: pRole, basePrice: pPrice, category: "General", photoUrl }),
+        body: JSON.stringify({ name: pName, country: "Unknown", role: pRole, basePrice: Number(pPrice) * 100000, category: "General", photoUrl }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -254,7 +258,7 @@ export default function AdminSetup() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ name: teamName, shortName: teamShortName, budget: teamBudget, logoUrl }),
+        body: JSON.stringify({ name: teamName, shortName: teamShortName, budget: Number(teamBudget) * 100000, logoUrl }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -401,6 +405,155 @@ export default function AdminSetup() {
     setDeletingAuction(false);
   };
 
+  const downloadSampleTeamsCSV = () => {
+    const csvContent = "name,shortName,budget,logoUrl\nMumbai Warriors,MW,100,https://example.com/logo.png\nChennai Kings,CK,100,\nDelhi Strikers,DS,80,";
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_teams.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadSamplePlayersCSV = () => {
+    const csvContent = "name,role,basePrice,photoUrl,country,category\nVirat Kohli,BATSMAN,20,https://example.com/photo.png,India,General\nMS Dhoni,WICKETKEEPER,15,,India,General\nJasprit Bumrah,BOWLER,10,,India,General";
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'sample_players.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportData = () => {
+    const getRoleColor = (role: string) => {
+      if (role.includes('BAT')) return 'background: #dbeafe; color: #1e40af;';
+      if (role.includes('BOWL')) return 'background: #dcfce7; color: #166534;';
+      if (role.includes('ALL')) return 'background: #fef9c3; color: #854d0e;';
+      if (role.includes('WICKET')) return 'background: #f3e8ff; color: #6b21a8;';
+      return 'background: #f1f5f9; color: #475569;'; // Default for Volleyball/Others
+    };
+
+    let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Auction Summary - ${auctionInfo?.name || 'BidArena'}</title>
+      <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; padding: 40px; color: #0f172a; }
+        .header-title { text-align: center; color: #1e293b; margin-bottom: 40px; font-size: 32px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
+        .team-container { background: white; border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .team-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 20px; }
+        .team-name { font-size: 24px; font-weight: bold; color: #2563eb; display: flex; align-items: center; gap: 12px; }
+        .team-logo { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+        .stats { display: flex; gap: 12px; flex-wrap: wrap; }
+        .stat-badge { background: #f1f5f9; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; border: 1px solid #e2e8f0; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #f8fafc; text-align: left; padding: 12px; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+        .player-row:hover { background: #f8fafc; }
+        .role-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .price { font-family: monospace; font-weight: bold; font-size: 14px; }
+        .unsold-container { background: #fff1f2; border: 1px solid #ffe4e6; box-shadow: none; }
+        .unsold-title { color: #e11d48; border-bottom-color: #fecdd3; }
+        .unsold-th { border-bottom-color: #fecdd3; background: #fff1f2; }
+      </style>
+    </head>
+    <body>
+      <div class="header-title">${auctionInfo?.name || 'BidArena'} - Auction Summary</div>
+    `;
+
+    teams.forEach(team => {
+      const spent = team.budget - team.remainingPurse;
+      html += `
+      <div class="team-container">
+        <div class="team-header">
+          <div class="team-name">
+            ${team.logoUrl ? `<img src="${team.logoUrl}" class="team-logo" />` : ''}
+            ${team.name}
+          </div>
+          <div class="stats">
+            <div class="stat-badge">Total Budget: ${fmt(team.budget)}</div>
+            <div class="stat-badge" style="background: #fef2f2; color: #991b1b;">Spent: ${fmt(spent)}</div>
+            <div class="stat-badge" style="background: #f0fdf4; color: #166534;">Remaining: ${fmt(team.remainingPurse)}</div>
+            <div class="stat-badge">Squad Size: ${team.players?.length || 0}</div>
+          </div>
+        </div>
+        ${team.players && team.players.length > 0 ? `
+        <table>
+          <thead>
+            <tr>
+              <th>Player Name</th>
+              <th>Role</th>
+              <th>Base Price</th>
+              <th>Sold Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${team.players.map((p: any) => `
+            <tr class="player-row">
+              <td style="font-weight: bold;">${p.name}</td>
+              <td><span class="role-badge" style="${getRoleColor(p.role)}">${p.role}</span></td>
+              <td class="price" style="color: #64748b;">${fmt(p.basePrice)}</td>
+              <td class="price text-green-600">${fmt(p.soldPrice)}</td>
+            </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ` : '<div style="color: #64748b; font-style: italic;">No players bought yet.</div>'}
+      </div>
+      `;
+    });
+
+    const unsold = players.filter(p => p.status === 'UNSOLD');
+    if (unsold.length > 0) {
+      html += `
+      <div class="team-container unsold-container">
+        <div class="team-header unsold-title">
+          <div class="team-name" style="color: #e11d48;">Unsold Players</div>
+          <div class="stat-badge" style="background: #ffe4e6; color: #be123c; border-color: #fecdd3;">Count: ${unsold.length}</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th class="unsold-th">Player Name</th>
+              <th class="unsold-th">Role</th>
+              <th class="unsold-th">Base Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${unsold.map((p: any) => `
+            <tr class="player-row">
+              <td style="font-weight: bold;">${p.name}</td>
+              <td><span class="role-badge" style="${getRoleColor(p.role)}">${p.role}</span></td>
+              <td class="price">${fmt(p.basePrice)}</td>
+            </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      `;
+    }
+
+    html += `
+    </body>
+    </html>
+    `;
+
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Auction_Summary_${auctionInfo?.name || "BidArena"}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="min-h-screen p-4 md:p-8 flex flex-col relative overflow-hidden bg-[#0a0f1a] text-white">
       <header className="flex flex-col md:flex-row justify-between items-center glass p-4 rounded-2xl mb-8 z-10 border border-brand/20 gap-4">
@@ -409,12 +562,20 @@ export default function AdminSetup() {
           <SettingsIcon />
           <h1 className="text-2xl font-bold tracking-widest uppercase">Auction Setup</h1>
         </div>
-        <button 
-          onClick={() => router.push(`/host/${auctionId}/live`)}
-          className="bg-brand text-black font-black px-8 py-3 rounded-xl flex items-center gap-2 hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(212,175,55,0.4)]"
-        >
-          <PlayCircle className="w-6 h-6" /> {auctionInfo?.status === 'ACTIVE' ? 'RESUME LIVE AUCTION' : 'START LIVE AUCTION'}
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleExportData}
+            className="bg-white/10 text-white font-bold px-4 md:px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-white/20 transition-all border border-white/20"
+          >
+            <Download className="w-5 h-5" /> <span className="hidden md:inline">Export Summary</span>
+          </button>
+          <button 
+            onClick={() => router.push(`/host/${auctionId}/live`)}
+            className="bg-brand text-black font-black px-4 md:px-8 py-3 rounded-xl flex items-center gap-2 hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(212,175,55,0.4)]"
+          >
+            <PlayCircle className="w-6 h-6" /> <span className="hidden sm:inline">{auctionInfo?.status === 'ACTIVE' ? 'RESUME LIVE AUCTION' : 'START LIVE AUCTION'}</span><span className="inline sm:hidden">LIVE</span>
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-8 z-10">
@@ -433,7 +594,7 @@ export default function AdminSetup() {
                 <input type="text" required value={teamShortName} onChange={e => setTeamShortName(e.target.value)} placeholder="Short Name" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-accent/50 outline-none" />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="number" required value={teamBudget} onChange={e => setTeamBudget(e.target.value)} placeholder="Budget" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-accent/50 outline-none" />
+                <input type="number" step="any" required value={teamBudget} onChange={e => setTeamBudget(e.target.value)} placeholder="Budget (in Lakhs)" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-accent/50 outline-none" />
                 <div className="relative">
                   <label className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 px-4 cursor-pointer hover:border-accent/50 transition h-full">
                     {teamLogoPreview ? (
@@ -464,15 +625,20 @@ export default function AdminSetup() {
 
           {/* Bulk Upload Teams CSV */}
           <div className="glass-panel p-6 rounded-3xl">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Upload className="text-gray-300" /> Bulk Upload Teams (CSV)
-            </h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Upload className="text-gray-300" /> Bulk Upload Teams (CSV)
+              </h2>
+              <button onClick={downloadSampleTeamsCSV} type="button" className="text-sm text-gray-400 hover:text-white flex items-center gap-1 transition">
+                <Download className="w-4 h-4" /> <span className="hidden sm:inline">Sample CSV</span>
+              </button>
+            </div>
             <form onSubmit={handleTeamFileUpload} className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-2 font-semibold">
-                  Default Team Budget
+                  Default Team Budget (in Lakhs)
                 </label>
-                <input type="number" required placeholder="100000000" value={defaultTeamBudget} onChange={e=>setDefaultTeamBudget(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
+                <input type="number" step="any" required placeholder="100" value={defaultTeamBudget} onChange={e=>setDefaultTeamBudget(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
               </div>
               <div className="border-2 border-dashed border-white/20 p-6 rounded-xl flex flex-col items-center justify-center hover:border-accent/50 transition cursor-pointer relative">
                 <span className="text-gray-300 font-semibold text-sm">{teamCsvFile ? teamCsvFile.name : "Drop CSV here"}</span>
@@ -513,7 +679,7 @@ export default function AdminSetup() {
                      </>
                    )}
                  </select>
-                 <input type="number" required placeholder="Base Price" value={pPrice} onChange={e=>setPPrice(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
+                 <input type="number" step="any" required placeholder="Base Price (in Lakhs)" value={pPrice} onChange={e=>setPPrice(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
                </div>
                <div className="relative">
                  <label className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 px-4 cursor-pointer hover:border-brand/50 transition">
@@ -544,15 +710,20 @@ export default function AdminSetup() {
 
           {/* Bulk Upload CSV */}
           <div className="glass-panel p-6 rounded-3xl">
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <Upload className="text-gray-300" /> Bulk Upload Players (CSV)
-            </h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Upload className="text-gray-300" /> Bulk Upload Players (CSV)
+              </h2>
+              <button onClick={downloadSamplePlayersCSV} type="button" className="text-sm text-gray-400 hover:text-white flex items-center gap-1 transition">
+                <Download className="w-4 h-4" /> <span className="hidden sm:inline">Sample CSV</span>
+              </button>
+            </div>
             <form onSubmit={handleFileUpload} className="space-y-4">
               <div>
                 <label className="block text-sm text-gray-400 mb-2 font-semibold">
-                  Default Player Base Price
+                  Default Player Base Price (in Lakhs)
                 </label>
-                <input type="number" required placeholder="100000" value={defaultPlayerBasePrice} onChange={e=>setDefaultPlayerBasePrice(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
+                <input type="number" step="any" required placeholder="1" value={defaultPlayerBasePrice} onChange={e=>setDefaultPlayerBasePrice(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
               </div>
               <div className="border-2 border-dashed border-white/20 p-6 rounded-xl flex flex-col items-center justify-center hover:border-brand/50 transition cursor-pointer relative">
                 <span className="text-gray-300 font-semibold text-sm">{file ? file.name : "Drop CSV here"}</span>
@@ -571,71 +742,102 @@ export default function AdminSetup() {
         <div className="xl:col-span-7 flex flex-col gap-6 h-full">
           
           <div className="glass-panel rounded-3xl p-6 flex flex-col h-1/2 border border-white/10 overflow-hidden">
-             <div className="flex items-center justify-between mb-4 sticky top-0 bg-[#0a0f1a]/80 backdrop-blur-md z-10 pb-2">
-               <h2 className="text-xl font-bold flex items-center gap-2"><Users className="text-brand" /> Player Database ({players.length})</h2>
+             <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 sticky top-0 bg-[#0a0f1a]/80 backdrop-blur-md z-10 pb-2 border-b border-white/5 gap-2">
+               <div className="flex flex-wrap items-center gap-2 md:gap-4">
+                 <h2 className="text-xl font-bold flex items-center gap-2 mr-2"><Users className="text-brand" /> Player Database ({players.length})</h2>
+                 <select 
+                   value={playerFilter} 
+                   onChange={(e) => setPlayerFilter(e.target.value)}
+                   className="bg-black border border-white/20 text-white rounded-lg px-2 py-1 text-xs md:text-sm focus:outline-none focus:border-brand/50 cursor-pointer"
+                 >
+                   <option value="ALL">All Status</option>
+                   <option value="PENDING">Pending</option>
+                   <option value="SOLD">Sold</option>
+                   <option value="UNSOLD">Unsold</option>
+                 </select>
+                 
+                 {playerFilter === 'SOLD' && (
+                   <select 
+                     value={teamFilter} 
+                     onChange={(e) => setTeamFilter(e.target.value)}
+                     className="bg-black border border-white/20 text-white rounded-lg px-2 py-1 text-xs md:text-sm focus:outline-none focus:border-brand/50 cursor-pointer max-w-[150px] truncate"
+                   >
+                     <option value="ALL">All Teams</option>
+                     {teams.map(t => (
+                       <option key={t.id} value={t.id}>{t.shortName}</option>
+                     ))}
+                   </select>
+                 )}
+               </div>
                {players.length > 0 && (
                  <button 
                    onClick={handleClearPlayers}
                    disabled={clearingPlayers}
-                   className="text-xs bg-red-500/10 text-red-500 hover:bg-red-500/20 px-3 py-1.5 rounded-lg font-bold transition disabled:opacity-50"
+                   className="text-xs bg-red-500/10 text-red-500 hover:bg-red-500/20 px-3 py-1.5 rounded-lg font-bold transition disabled:opacity-50 shrink-0 self-start md:self-auto"
                  >
                    {clearingPlayers ? "Clearing..." : "Clear All"}
                  </button>
                )}
              </div>
-             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max">
-               {players.map(p => (
-                 <div key={p.id} className="bg-white/5 border border-white/10 p-3 rounded-2xl flex items-center gap-3 hover:border-white/30 transition relative group">
-                   {p.photoUrl ? (
-                     <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover border-2 border-white/10 bg-black/50 flex-shrink-0" />
-                   ) : (
-                     <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center font-black text-lg text-white/50 border-2 border-white/5 flex-shrink-0">{p.name.charAt(0)}</div>
-                   )}
-                   <div className="overflow-hidden flex-1 min-w-0">
-                     <div className="font-bold truncate text-white text-sm">{p.name}</div>
-                     <div className="text-xs text-brand font-semibold">{p.role}</div>
-                     <div className="text-xs text-gray-400">₹{p.basePrice.toLocaleString("en-IN")}</div>
+             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max pb-4">
+               {players
+                 .filter(p => playerFilter === "ALL" || p.status === playerFilter)
+                 .filter(p => playerFilter !== "SOLD" || teamFilter === "ALL" || p.teamId === teamFilter)
+                 .map(p => (
+                 <div key={p.id} className="bg-white/5 border border-white/10 p-4 rounded-3xl flex flex-col gap-1 hover:border-white/30 transition relative group">
+                   <div className="flex items-start gap-4 w-full">
+                     {p.photoUrl ? (
+                       <img referrerPolicy="no-referrer" src={p.photoUrl} alt={p.name} className="w-14 h-14 rounded-full object-cover border-2 border-white/10 bg-black/50 flex-shrink-0" />
+                     ) : (
+                       <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center font-black text-xl text-white/50 border-2 border-white/5 flex-shrink-0">{p.name.charAt(0)}</div>
+                     )}
+                     <div className="overflow-hidden flex-1 min-w-0">
+                       <div className="font-bold truncate text-white text-base mb-0.5" title={p.name}>{p.name}</div>
+                       <div className="text-[10px] text-brand font-bold uppercase tracking-wider mb-1.5">{p.role}</div>
+                       <div className="text-xs font-mono font-bold text-gray-300">₹{(p.basePrice / 100000).toLocaleString("en-IN", { maximumFractionDigits: 2 })}L</div>
+                     </div>
                    </div>
-                   <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <div className="relative group/badge">
-                        <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black border cursor-default ${
+                   
+                   <div className="flex items-center justify-between gap-2 border-t border-white/10 pt-3 mt-3 w-full">
+                      <div className="relative flex-shrink-0">
+                        <span className={`px-2.5 py-1 rounded-md flex items-center justify-center text-[10px] uppercase font-black border cursor-default tracking-widest ${
                           p.status === 'SOLD' 
                             ? 'bg-green-500/20 text-green-400 border-green-500/40' 
                             : p.status === 'UNSOLD'
                               ? 'bg-red-500/20 text-red-400 border-red-500/40'
                               : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40'
                         }`}>
-                          {p.status === 'SOLD' ? 'S' : p.status === 'UNSOLD' ? 'U' : 'P'}
-                        </span>
-                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 text-[10px] font-bold rounded-md bg-white/10 backdrop-blur-md text-white border border-white/20 whitespace-nowrap opacity-0 group-hover/badge:opacity-100 transition-opacity pointer-events-none shadow-lg">
-                          {p.status === 'SOLD' ? 'Sold' : p.status === 'UNSOLD' ? 'Unsold' : 'Pending'}
+                          {p.status}
                         </span>
                       </div>
-                      {p.status !== 'SOLD' && (
-                        <button
-                          onClick={() => handleEditPlayer(p)}
-                          title="Edit Player"
-                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition border border-blue-500/30 opacity-0 group-hover:opacity-100"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                     {p.status !== 'PENDING' && (
+                      
+                      <div className="flex items-center gap-2">
+                        {p.status !== 'SOLD' && (
+                          <button
+                            onClick={() => handleEditPlayer(p)}
+                            title="Edit Player"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition border border-blue-500/30 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
+                       {p.status !== 'PENDING' && (
+                         <button
+                           onClick={() => handleResetPlayer(p.id)}
+                           title="Reset Player"
+                           className="w-8 h-8 rounded-lg flex items-center justify-center bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                         >
+                           <RotateCcw className="w-4 h-4" />
+                         </button>
+                       )}
                        <button
-                         onClick={() => handleResetPlayer(p.id)}
-                         title="Reset Player"
-                         className="w-7 h-7 rounded-lg flex items-center justify-center bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition border border-orange-500/30 opacity-0 group-hover:opacity-100"
+                         onClick={() => handleDeletePlayer(p.id)}
+                         title="Delete Player"
+                         className="w-8 h-8 rounded-lg flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 transition border border-red-500/30 opacity-100 md:opacity-0 md:group-hover:opacity-100"
                        >
-                         <RotateCcw className="w-3.5 h-3.5" />
+                         <Trash2 className="w-4 h-4" />
                        </button>
-                     )}
-                     <button
-                       onClick={() => handleDeletePlayer(p.id)}
-                       title="Delete Player"
-                       className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 transition border border-red-500/30 opacity-0 group-hover:opacity-100"
-                     >
-                       <Trash2 className="w-3.5 h-3.5" />
-                     </button>
+                      </div>
                    </div>
                  </div>
                ))}
@@ -666,19 +868,19 @@ export default function AdminSetup() {
                    )}
                    <div className="overflow-hidden flex-1 min-w-0">
                      <div className="font-bold truncate text-white text-sm">{t.shortName}</div>
-                     <div className="text-xs text-gray-400">₹{t.budget.toLocaleString("en-IN")}</div>
+                     <div className="text-xs text-gray-400">₹{(t.budget / 100000).toLocaleString("en-IN", { maximumFractionDigits: 2 })}L</div>
                    </div>
                     <button
                       onClick={() => handleEditTeam(t)}
                       title="Edit Team"
-                      className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37]/20 transition border border-[#D4AF37]/30 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                      className="w-7 h-7 rounded-lg flex items-center justify-center bg-[#D4AF37]/10 text-[#D4AF37] hover:bg-[#D4AF37]/20 transition border border-[#D4AF37]/30 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex-shrink-0"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                    <button
                      onClick={() => handleDeleteTeam(t.id)}
                      title="Delete Team"
-                     className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 transition border border-red-500/30 opacity-0 group-hover:opacity-100 flex-shrink-0"
+                     className="w-7 h-7 rounded-lg flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500/20 transition border border-red-500/30 opacity-100 md:opacity-0 md:group-hover:opacity-100 flex-shrink-0"
                    >
                      <Trash2 className="w-3.5 h-3.5" />
                    </button>

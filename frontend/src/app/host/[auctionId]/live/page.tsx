@@ -7,8 +7,9 @@ import { useSocket } from "@/hooks/useSocket";
 import { SocketEvents, Player } from "shared";
 import { Shield, Trophy, IndianRupee, TrendingUp, X, SkipForward, Users, Copy, Check, RotateCcw, BarChart3, Clock } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
+import confetti from "canvas-confetti";
 
-const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+const fmt = (n: number) => `₹${(n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 2 })}L`;
 
 interface BidEntry { teamId: string; teamName: string; amount: number }
 
@@ -173,6 +174,11 @@ export default function HostLiveView() {
       fetchTeams();
       fetchPlayersLeft();
       setTimeout(() => setSoldPopup(null), 5000);
+      confetti({
+        particleCount: 150,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
     });
 
     socket.on(SocketEvents.PLAYER_UNSOLD, (info: any) => {
@@ -518,8 +524,7 @@ export default function HostLiveView() {
                <span className="font-bold hidden sm:inline">Unsold</span>
              </button>
           </div>
-        </header>
-
+        </header>      <main className="flex-1 flex flex-col xl:flex-row p-4 md:p-6 gap-6 z-10 min-h-[calc(100vh-100px)] xl:h-[calc(100vh-100px)] overflow-y-auto xl:overflow-hidden relative">
       {/* STATS MODAL (PAUSED) */}
       <AnimatePresence>
         {status === 'PAUSED' && (
@@ -528,7 +533,6 @@ export default function HostLiveView() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-40 bg-black/95 backdrop-blur-md flex flex-col items-center justify-start p-4 lg:p-6"
-            style={{ top: '88px' }}
           >
             <div className="w-full max-w-[95vw] h-full max-h-full flex flex-col pb-4">
               <div className="flex items-center gap-4 mb-6 shrink-0">
@@ -581,8 +585,6 @@ export default function HostLiveView() {
         )}
       </AnimatePresence>
 
-      <main className="flex-1 flex p-6 gap-6 z-10 h-[calc(100vh-100px)]">
-        
         {/* Left: Player Presentation */}
         <div className="flex-1 flex flex-col justify-center items-center relative glass-panel rounded-[3rem] p-12 border border-white/10 overflow-hidden">
           

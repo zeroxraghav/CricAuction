@@ -159,7 +159,10 @@ router.post('/:id/players/csv', csvUpload.single('file'), async (req: any, res: 
           }
           const photoUrl = convertGoogleDriveUrl(normalized.photourl || normalized.photo || normalized.imageurl || normalized.image);
           const country = normalized.country || 'Unknown';
-          const basePrice = parseInt(normalized.baseprice) || defaultBasePriceValue;
+          let basePrice = parseInt(normalized.baseprice) || defaultBasePriceValue;
+          if (basePrice < 10000) {
+            basePrice = basePrice * 100000;
+          }
           const category = normalized.category || 'General';
 
           return {
@@ -215,7 +218,10 @@ router.post('/:id/teams/csv', csvUpload.single('file'), async (req: any, res: an
 
           const name = normalized.name || normalized.teamname || normalized.team || '';
           const shortName = normalized.shortname || normalized.teamshortname || normalized.short || normalized.code || '';
-          const budget = parseInt(normalized.budget) || defaultBudgetValue;
+          let budget = parseInt(normalized.budget) || defaultBudgetValue;
+          if (budget < 10000) {
+            budget = budget * 100000;
+          }
           const logoUrl = convertGoogleDriveUrl(normalized.logourl || normalized.logo || normalized.imageurl || normalized.image);
 
           return {
