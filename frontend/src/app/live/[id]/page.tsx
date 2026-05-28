@@ -136,6 +136,7 @@ export default function SpectatorView() {
     socket.on(SocketEvents.PLAYER_UNSOLD, (info: any) => {
       setSoldPopup({
         playerName: info.playerName,
+        playerPhoto: info.playerPhoto,
         teamName: "UNSOLD",
         amount: 0,
       });
@@ -354,7 +355,7 @@ export default function SpectatorView() {
                     )}
                     <div className="flex-1">
                       <div className="font-bold">{p.name}</div>
-                      <div className="text-sm text-gray-500">{p.role} • {p.country}</div>
+                      <div className="text-sm text-gray-500">{p.role} &bull; {p.age ? p.age + ' YRS' : ''}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-gray-500 uppercase font-bold">Base</div>
@@ -458,7 +459,7 @@ export default function SpectatorView() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.7, opacity: 0 }}
               transition={{ type: "spring", duration: 0.6 }}
-              className="glass-panel rounded-[3rem] p-16 max-w-2xl w-full text-center relative border-2 border-brand/50 shadow-[0_0_120px_rgba(212,175,55,0.4)]"
+              className="glass-panel rounded-3xl md:rounded-[3rem] p-6 md:p-16 max-w-2xl w-full text-center relative border-2 border-brand/50 shadow-[0_0_120px_rgba(212,175,55,0.4)]"
               onClick={e => e.stopPropagation()}
             >
               <button onClick={() => setSoldPopup(null)} className="absolute top-6 right-6 text-gray-400 hover:text-white"><X className="w-7 h-7" /></button>
@@ -470,9 +471,9 @@ export default function SpectatorView() {
                   ) : (
                     <div className="w-48 h-48 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-7xl font-black text-white/20 shrink-0">{soldPopup.playerName.charAt(0)}</div>
                   )}
-                  <div className="text-center md:text-left">
+                  <div className="text-center md:text-left break-words min-w-0 flex-1">
                     <h2 className="text-5xl md:text-6xl font-black text-brand mb-4" style={{ textShadow: '0 0 30px rgba(212,175,55,0.5)' }}>SOLD!</h2>
-                    <p className="text-3xl md:text-4xl font-bold text-white mb-3">{soldPopup.playerName}</p>
+                    <p className="text-3xl md:text-4xl font-bold text-white mb-3 break-words whitespace-normal">{soldPopup.playerName}</p>
                     <p className="text-xl md:text-2xl text-gray-300 mb-6">to <span className="text-accent font-black text-2xl md:text-3xl">{soldPopup.teamName}</span></p>
                     <div className="bg-brand/10 border border-brand/30 rounded-2xl py-4 px-8 inline-block">
                       <p className="text-4xl md:text-5xl font-black text-brand">{fmt(soldPopup.amount)}</p>
@@ -480,11 +481,15 @@ export default function SpectatorView() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col md:flex-row items-center justify-center gap-10">
-                  <div className="w-48 h-48 rounded-3xl bg-white/10 border-4 border-red-500/50 flex items-center justify-center text-7xl font-black text-red-500/50 shrink-0">{soldPopup.playerName.charAt(0)}</div>
-                  <div className="text-center md:text-left">
-                    <h2 className="text-5xl md:text-6xl font-black text-red-500 mb-6">UNSOLD</h2>
-                    <p className="text-3xl md:text-4xl font-bold text-white">{soldPopup.playerName}</p>
+                <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10">
+                  {soldPopup.playerPhoto ? (
+                    <img referrerPolicy="no-referrer" src={soldPopup.playerPhoto} alt="" className="w-32 h-32 md:w-48 md:h-48 rounded-3xl object-cover border-4 border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)] shrink-0" />
+                  ) : (
+                    <div className="w-32 h-32 md:w-48 md:h-48 rounded-3xl bg-white/10 border-4 border-red-500/50 flex items-center justify-center text-5xl md:text-7xl font-black text-red-500/50 shrink-0">{soldPopup.playerName.charAt(0)}</div>
+                  )}
+                  <div className="text-center md:text-left break-words min-w-0 flex-1">
+                    <h2 className="text-4xl md:text-6xl font-black text-red-500 mb-4 md:mb-6">UNSOLD</h2>
+                    <p className="text-2xl md:text-4xl font-bold text-white break-words whitespace-normal">{soldPopup.playerName}</p>
                     <p className="text-gray-400 mt-4 text-xl">No bids were placed</p>
                   </div>
                 </div>
@@ -588,7 +593,7 @@ export default function SpectatorView() {
                         )}
                         <div className="flex-1">
                           <div className="font-bold text-lg">{p.name}</div>
-                          <div className="text-sm text-gray-400">{p.role} &bull; {p.country}</div>
+                          <div className="text-sm text-gray-400">{p.role} &bull; {p.age ? p.age + ' YRS' : ''}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Base Price</div>
@@ -710,7 +715,7 @@ export default function SpectatorView() {
       </AnimatePresence>
 
         {/* Left: Player Presentation */}
-        <div className="w-full xl:flex-1 flex flex-col justify-center items-center relative glass-panel rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 border border-white/10 overflow-hidden shrink-0">
+        <div className="flex-1 flex flex-col justify-center items-center relative glass-panel rounded-[3rem] p-4 md:p-12 border border-white/10 overflow-hidden">
           
           <AnimatePresence mode="wait">
             {currentPlayer ? (
@@ -720,24 +725,24 @@ export default function SpectatorView() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 1.1, filter: "blur(10px)" }}
                 transition={{ type: "spring", duration: 0.8 }}
-                className="flex flex-col items-center w-full"
+                className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto h-full"
               >
-                <div className="flex flex-col md:flex-row items-center gap-10 w-full mb-8">
+                <div className="flex flex-col items-center justify-center gap-4 md:gap-10 w-full mb-8 mt-auto">
                   {currentPlayer.photoUrl ? (
-                    <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
+                    <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-40 h-40 md:w-56 md:h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
                   ) : (
-                    <div className="w-56 h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
+                    <div className="w-40 h-40 md:w-56 md:h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-7xl md:text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
                   )}
 
-                  <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                    <div className="text-2xl font-bold text-accent tracking-widest uppercase mb-4">{currentPlayer.role} &bull; {currentPlayer.country}</div>
-                    <h2 className="text-6xl lg:text-7xl font-black uppercase tracking-tight leading-none" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
+                  <div className="flex flex-col items-center text-center min-w-0 flex-1 px-4">
+                    <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-1 md:mb-4">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
+                    <h2 className="text-3xl sm:text-5xl lg:text-7xl font-black uppercase tracking-tight leading-none break-words whitespace-normal w-full" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
                       {currentPlayer.name}
                     </h2>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full max-w-4xl relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full max-w-4xl mb-auto px-4 relative">
                   {/* EDITING OVERLAY */}
                   {status === 'EDITING' && (
                     <div className="absolute inset-0 z-30 bg-black/70 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center border border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.2)]">
@@ -750,9 +755,9 @@ export default function SpectatorView() {
                   )}
                   
                   {/* Current Bid */}
-                  <div className={`p-8 rounded-3xl border-2 flex flex-col items-center justify-center transition-colors duration-500 ${currentBid > 0 ? 'bg-brand/20 border-brand/50 shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'bg-white/5 border-white/10'}`}>
+                  <div className={`p-6 md:p-8 rounded-3xl border-2 flex flex-col items-center justify-center transition-colors duration-500 text-center ${currentBid > 0 ? 'bg-brand/20 border-brand/50 shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'bg-white/5 border-white/10'}`}>
                      <div className="text-gray-400 uppercase tracking-widest font-bold mb-2">Current Bid</div>
-                     <div className={`text-5xl font-black ${currentBid > 0 ? 'text-brand' : 'text-gray-500'}`}>
+                     <div className={`text-4xl md:text-5xl font-black ${currentBid > 0 ? 'text-brand' : 'text-gray-500'}`}>
                        {currentBid === 0 ? "WAITING" : fmt(currentBid)}
                      </div>
                      {highestTeamName && (
@@ -777,12 +782,17 @@ export default function SpectatorView() {
               </motion.div>
             ) : (
               <motion.div 
+                key="empty"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center text-gray-500"
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center justify-center text-center h-full w-full mx-auto"
               >
-                <Trophy className="w-32 h-32 mb-8 opacity-20" />
-                <h2 className="text-4xl font-black uppercase tracking-widest">Waiting for next player</h2>
+                <div className="w-32 h-32 md:w-48 md:h-48 bg-white/5 rounded-[3rem] flex items-center justify-center mb-8 border border-white/10">
+                  <Trophy className="w-16 h-16 md:w-20 md:h-20 text-gray-500" />
+                </div>
+                <h2 className="text-3xl md:text-5xl font-black text-gray-400 uppercase tracking-widest mb-4 w-full">Waiting for next player...</h2>
+                <p className="text-gray-500 text-lg md:text-xl max-w-md w-full">The host will begin bidding shortly</p>
               </motion.div>
             )}
           </AnimatePresence>

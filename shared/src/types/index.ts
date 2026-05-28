@@ -37,11 +37,10 @@ export interface Player {
   id: string;
   name: string;
   photoUrl?: string;
-  country: string;
+  age: string;
   role: PlayerRole;
   basePrice: number;
   soldPrice?: number;
-  category?: string;
   status: PlayerStatus;
   teamId?: string; // null if unsold/pending
   stats?: any; // could be structured more strictly later

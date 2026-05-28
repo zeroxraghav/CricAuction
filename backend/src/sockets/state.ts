@@ -103,7 +103,8 @@ export const sellPlayer = async (io: Server, auctionId: string) => {
       data: { status: 'UNSOLD' }
     });
     io.to(auctionId).emit(SocketEvents.PLAYER_UNSOLD, { 
-      playerName: state.currentPlayer.name 
+      playerName: state.currentPlayer.name,
+      playerPhoto: state.currentPlayer.photoUrl
     });
   }
 

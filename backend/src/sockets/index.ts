@@ -144,16 +144,46 @@ export const setupSockets = (io: Server) => {
         return socket.emit(SocketEvents.ERROR, { message: 'You must complete the current bid (Sell or Unsold) first' });
       }
 
-      const pendingCount = await prisma.player.count({ where: { status: 'PENDING', auctionId } });
-      if (pendingCount === 0) {
-        return socket.emit(SocketEvents.NO_PLAYERS_LEFT);
+      // Check if all teams have filled their quota
+      const teams = await prisma.team.findMany({ where: { auctionId }, include: { _count: { select: { players: true } } } });
+      if (teams.length > 0) {
+        const allTeamsFull = teams.every(t => t._count.players >= t.maxPlayers);
+        if (allTeamsFull) {
+          await prisma.auction.update({ where: { id: auctionId }, data: { status: 'COMPLETED' } });
+          state.status = 'COMPLETED';
+          stopTimer(auctionId);
+          io.to(auctionId).emit(SocketEvents.AUCTION_ENDED);
+          return;
+        }
       }
 
-      const randomSkip = Math.floor(Math.random() * pendingCount);
-      const nextPlayer = await prisma.player.findFirst({ 
-        where: { status: 'PENDING', auctionId },
-        skip: randomSkip 
-      });
+      const pendingCount = await prisma.player.count({ where: { status: 'PENDING', auctionId } });
+      let nextPlayer;
+
+      if (pendingCount > 0) {
+        const randomSkip = Math.floor(Math.random() * pendingCount);
+        nextPlayer = await prisma.player.findFirst({ 
+          where: { status: 'PENDING', auctionId },
+          skip: randomSkip 
+        });
+      } else {
+        const unsoldCount = await prisma.player.count({ where: { status: 'UNSOLD', auctionId, isRecalled: false } });
+        if (unsoldCount === 0) {
+          return socket.emit(SocketEvents.NO_PLAYERS_LEFT);
+        }
+        const randomSkip = Math.floor(Math.random() * unsoldCount);
+        nextPlayer = await prisma.player.findFirst({ 
+          where: { status: 'UNSOLD', auctionId, isRecalled: false },
+          skip: randomSkip 
+        });
+        
+        if (nextPlayer) {
+          await prisma.player.update({
+            where: { id: nextPlayer.id },
+            data: { isRecalled: true }
+          });
+        }
+      }
 
       if (!nextPlayer) {
         return socket.emit(SocketEvents.NO_PLAYERS_LEFT);

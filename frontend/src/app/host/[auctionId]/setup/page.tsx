@@ -28,6 +28,7 @@ export default function AdminSetup() {
   const [teamName, setTeamName] = useState("");
   const [teamShortName, setTeamShortName] = useState("");
   const [teamBudget, setTeamBudget] = useState("100"); // 100 Lakhs = 1 Cr default
+  const [teamMaxPlayers, setTeamMaxPlayers] = useState("15");
   const [teamLogoFile, setTeamLogoFile] = useState<File | null>(null);
   const [teamLogoPreview, setTeamLogoPreview] = useState<string>("");
   const [teamCreating, setTeamCreating] = useState(false);
@@ -40,6 +41,7 @@ export default function AdminSetup() {
   const [pAdding, setPAdding] = useState(false);
 
   const [deletingAuction, setDeletingAuction] = useState(false);
+  const [resettingAuction, setResettingAuction] = useState(false);
   const [clearingPlayers, setClearingPlayers] = useState(false);
   const [clearingTeams, setClearingTeams] = useState(false);
 
@@ -73,6 +75,7 @@ export default function AdminSetup() {
   }, []);
 
   const [defaultTeamBudget, setDefaultTeamBudget] = useState("100");
+  const [defaultTeamMaxPlayers, setDefaultTeamMaxPlayers] = useState("15");
   const [defaultPlayerBasePrice, setDefaultPlayerBasePrice] = useState("1");
 
   const handleFileUpload = async (e: React.FormEvent) => {
@@ -113,6 +116,7 @@ export default function AdminSetup() {
     const formData = new FormData();
     formData.append("file", teamCsvFile);
     formData.append("defaultBudget", defaultTeamBudget);
+    formData.append("defaultMaxPlayers", defaultTeamMaxPlayers);
 
     try {
       const token = await getToken();
@@ -140,6 +144,7 @@ export default function AdminSetup() {
     setTeamName(team.name);
     setTeamShortName(team.shortName);
     setTeamBudget((team.budget / 100000).toString());
+    setTeamMaxPlayers(team.maxPlayers?.toString() || "15");
     setTeamLogoPreview(team.logoUrl || "");
     setTeamLogoFile(null);
 
@@ -154,6 +159,7 @@ export default function AdminSetup() {
     setTeamName("");
     setTeamShortName("");
     setTeamBudget("100");
+    setTeamMaxPlayers("15");
     setTeamLogoFile(null);
     setTeamLogoPreview("");
   };
@@ -211,7 +217,7 @@ export default function AdminSetup() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ name: pName, country: "Unknown", role: pRole, basePrice: Number(pPrice) * 100000, category: "General", photoUrl }),
+        body: JSON.stringify({ name: pName, age: "25", role: pRole, basePrice: Number(pPrice) * 100000, photoUrl }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -258,12 +264,12 @@ export default function AdminSetup() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ name: teamName, shortName: teamShortName, budget: Number(teamBudget) * 100000, logoUrl }),
+        body: JSON.stringify({ name: teamName, shortName: teamShortName, budget: Number(teamBudget) * 100000, maxPlayers: Number(teamMaxPlayers), logoUrl }),
       });
       const data = await res.json();
       if (res.ok) {
         toast.success(isEdit ? `Success: Team ${data.team.name} updated!` : `Success: Team ${data.team.name} created!`);
-        setTeamName(""); setTeamShortName(""); setTeamLogoFile(null); setTeamLogoPreview("");
+        setTeamName(""); setTeamShortName(""); setTeamMaxPlayers("15"); setTeamLogoFile(null); setTeamLogoPreview("");
         setEditingTeamId(null);
         fetchData();
       } else {
@@ -405,8 +411,31 @@ export default function AdminSetup() {
     setDeletingAuction(false);
   };
 
+  const handleResetAuction = async () => {
+    if (!confirm("Are you sure you want to reset this auction? This will reset all players to PENDING, refund all team budgets, and clear all bids. The auction will start from scratch.")) return;
+    
+    setResettingAuction(true);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/reset`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`Success: ${data.message}`);
+        fetchData(); // Refresh all data
+      } else {
+        toast.error(`Error: ${data.error}`);
+      }
+    } catch (err) {
+      toast.error("Failed to reset auction");
+    }
+    setResettingAuction(false);
+  };
+
   const downloadSampleTeamsCSV = () => {
-    const csvContent = "name,shortName,budget,logoUrl\nMumbai Warriors,MW,100,https://example.com/logo.png\nChennai Kings,CK,100,\nDelhi Strikers,DS,80,";
+    const csvContent = "name,shortName,budget,maxPlayers,logoUrl\nMumbai Warriors,MW,100,15,https://example.com/logo.png\nChennai Kings,CK,100,15,\nDelhi Strikers,DS,80,15,";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -417,7 +446,7 @@ export default function AdminSetup() {
   };
 
   const downloadSamplePlayersCSV = () => {
-    const csvContent = "name,role,basePrice,photoUrl,country,category\nVirat Kohli,BATSMAN,20,https://example.com/photo.png,India,General\nMS Dhoni,WICKETKEEPER,15,,India,General\nJasprit Bumrah,BOWLER,10,,India,General";
+    const csvContent = "name,role,basePrice,photoUrl,age\nVirat Kohli,BATSMAN,20,https://example.com/photo.png,35\nMS Dhoni,WICKETKEEPER,15,,42\nJasprit Bumrah,BOWLER,10,,30";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -564,6 +593,14 @@ export default function AdminSetup() {
         </div>
         <div className="flex items-center gap-4">
           <button 
+            onClick={handleResetAuction}
+            disabled={resettingAuction}
+            className="bg-red-500/10 text-red-500 font-bold px-4 md:px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-red-500/20 transition-all border border-red-500/20 disabled:opacity-50"
+            title="Reset entire auction"
+          >
+            <RotateCcw className="w-5 h-5" /> <span className="hidden md:inline">{resettingAuction ? "Resetting..." : "Reset"}</span>
+          </button>
+          <button 
             onClick={handleExportData}
             className="bg-white/10 text-white font-bold px-4 md:px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-white/20 transition-all border border-white/20"
           >
@@ -593,8 +630,9 @@ export default function AdminSetup() {
                 <input type="text" required value={teamName} onChange={e => setTeamName(e.target.value)} placeholder="Team Name" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-accent/50 outline-none" />
                 <input type="text" required value={teamShortName} onChange={e => setTeamShortName(e.target.value)} placeholder="Short Name" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-accent/50 outline-none" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <input type="number" step="any" required value={teamBudget} onChange={e => setTeamBudget(e.target.value)} placeholder="Budget (in Lakhs)" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-accent/50 outline-none" />
+                <input type="number" min="1" required value={teamMaxPlayers} onChange={e => setTeamMaxPlayers(e.target.value)} placeholder="Players to Buy" className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-accent/50 outline-none" />
                 <div className="relative">
                   <label className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 px-4 cursor-pointer hover:border-accent/50 transition h-full">
                     {teamLogoPreview ? (
@@ -635,10 +673,16 @@ export default function AdminSetup() {
             </div>
             <form onSubmit={handleTeamFileUpload} className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-2 font-semibold">
-                  Default Team Budget (in Lakhs)
-                </label>
-                <input type="number" step="any" required placeholder="100" value={defaultTeamBudget} onChange={e=>setDefaultTeamBudget(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-gray-400 mb-2">Budget (in Lakhs)</label>
+                    <input type="number" min="0" required value={defaultTeamBudget} onChange={(e) => setDefaultTeamBudget(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand" placeholder="e.g. 100 for 1 Cr" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-gray-400 mb-2">Players to Buy</label>
+                    <input type="number" min="1" required value={defaultTeamMaxPlayers} onChange={(e) => setDefaultTeamMaxPlayers(e.target.value)} className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand" placeholder="e.g. 15" />
+                  </div>
+                </div>
               </div>
               <div className="border-2 border-dashed border-white/20 p-6 rounded-xl flex flex-col items-center justify-center hover:border-accent/50 transition cursor-pointer relative">
                 <span className="text-gray-300 font-semibold text-sm">{teamCsvFile ? teamCsvFile.name : "Drop CSV here"}</span>

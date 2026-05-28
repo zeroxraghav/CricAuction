@@ -95,7 +95,7 @@ router.get('/:id', async (req: any, res: any) => {
   const { id } = req.params;
   const hostId = req.auth.userId;
   try {
-    const auction = await prisma.auction.findUnique({
+    const auction = await prisma.auction.findFirst({
       where: { id, hostId },
       include: { teams: true, players: true }
     });
@@ -122,10 +122,14 @@ router.post('/:id/players/csv', csvUpload.single('file'), async (req: any, res: 
   }
   const { id } = req.params;
   const hostId = req.auth.userId;
+  console.log(`[DEBUG] POST /:id/players/csv hit. id=${id}, hostId=${hostId}`);
 
   // Verify ownership
-  const auction = await prisma.auction.findUnique({ where: { id, hostId } });
-  if (!auction) return res.status(404).json({ error: 'Auction not found' });
+  const auction = await prisma.auction.findFirst({ where: { id, hostId } });
+  if (!auction) {
+    console.log(`[DEBUG] Auction not found in /players/csv for id=${id} and hostId=${hostId}`);
+    return res.status(404).json({ error: 'Auction not found' });
+  }
 
   const defaultBasePriceValue = parseFloat(req.body.defaultBasePrice) || 100000;
 
@@ -158,20 +162,18 @@ router.post('/:id/players/csv', csvUpload.single('file'), async (req: any, res: 
             roleInput = defaultRole;
           }
           const photoUrl = convertGoogleDriveUrl(normalized.photourl || normalized.photo || normalized.imageurl || normalized.image);
-          const country = normalized.country || 'Unknown';
+          const age = String(normalized.age || normalized.playerage || 'N/A');
           let basePrice = parseInt(normalized.baseprice) || defaultBasePriceValue;
           if (basePrice < 10000) {
             basePrice = basePrice * 100000;
           }
-          const category = normalized.category || 'General';
 
           return {
             name,
             photoUrl,
-            country,
+            age,
             role: roleInput as PlayerRole,
             basePrice,
-            category,
             auctionId: id
           };
         });
@@ -179,8 +181,9 @@ router.post('/:id/players/csv', csvUpload.single('file'), async (req: any, res: 
         await prisma.player.createMany({ data: validPlayers, skipDuplicates: true });
         fs.unlinkSync(req.file.path);
         res.json({ message: 'Players imported successfully', count: validPlayers.length });
-      } catch (err) {
-        res.status(500).json({ error: 'Failed to process CSV' });
+      } catch (err: any) {
+        console.error('Error in players CSV import:', err);
+        res.status(500).json({ error: `Failed to process CSV: ${err.message}` });
       }
     });
 });
@@ -194,10 +197,11 @@ router.post('/:id/teams/csv', csvUpload.single('file'), async (req: any, res: an
   const hostId = req.auth.userId;
 
   // Verify ownership
-  const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+  const auction = await prisma.auction.findFirst({ where: { id, hostId } });
   if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
   const defaultBudgetValue = parseFloat(req.body.defaultBudget) || 10000000;
+  const defaultMaxPlayersValue = parseInt(req.body.defaultMaxPlayers) || 15;
 
   const results: any[] = [];
   fs.createReadStream(req.file.path)
@@ -222,6 +226,7 @@ router.post('/:id/teams/csv', csvUpload.single('file'), async (req: any, res: an
           if (budget < 10000) {
             budget = budget * 100000;
           }
+          const maxPlayers = parseInt(normalized.maxplayers) || defaultMaxPlayersValue;
           const logoUrl = convertGoogleDriveUrl(normalized.logourl || normalized.logo || normalized.imageurl || normalized.image);
 
           return {
@@ -230,6 +235,7 @@ router.post('/:id/teams/csv', csvUpload.single('file'), async (req: any, res: an
             logoUrl,
             budget: budget,
             remainingPurse: budget,
+            maxPlayers,
             auctionId: id
           };
         });
@@ -237,8 +243,9 @@ router.post('/:id/teams/csv', csvUpload.single('file'), async (req: any, res: an
         await prisma.team.createMany({ data: validTeams, skipDuplicates: true });
         fs.unlinkSync(req.file.path);
         res.json({ message: 'Teams imported successfully', count: validTeams.length });
-      } catch (err) {
-        res.status(500).json({ error: 'Failed to process teams CSV' });
+      } catch (err: any) {
+        console.error('Error in teams CSV import:', err);
+        res.status(500).json({ error: `Failed to process teams CSV: ${err.message}` });
       }
     });
 });
@@ -247,10 +254,10 @@ router.post('/:id/teams/csv', csvUpload.single('file'), async (req: any, res: an
 router.post('/:id/teams', async (req: any, res: any) => {
   const { id } = req.params;
   const hostId = req.auth.userId;
-  const { name, shortName, budget, logoUrl } = req.body;
+  const { name, shortName, budget, logoUrl, maxPlayers } = req.body;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
     const team = await prisma.team.create({
@@ -258,6 +265,7 @@ router.post('/:id/teams', async (req: any, res: any) => {
         name, shortName, logoUrl: convertGoogleDriveUrl(logoUrl),
         budget: parseFloat(budget),
         remainingPurse: parseFloat(budget),
+        maxPlayers: maxPlayers ? parseInt(maxPlayers) : 15,
         auctionId: id
       }
     });
@@ -272,14 +280,21 @@ router.post('/:id/teams', async (req: any, res: any) => {
 router.put('/:id/teams/:teamId', async (req: any, res: any) => {
   const { id, teamId } = req.params;
   const hostId = req.auth.userId;
-  const { name, shortName, budget, logoUrl } = req.body;
+  console.log(`[DEBUG] PUT /:id/teams/:teamId hit. id=${id}, teamId=${teamId}, hostId=${hostId}`);
+  const { name, shortName, budget, logoUrl, maxPlayers } = req.body;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
-    if (!auction) return res.status(404).json({ error: 'Auction not found' });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
+    if (!auction) {
+      console.log(`[DEBUG] Auction not found for id=${id} and hostId=${hostId}`);
+      return res.status(404).json({ error: 'Auction not found' });
+    }
 
-    const team = await prisma.team.findUnique({ where: { id: teamId, auctionId: id } });
-    if (!team) return res.status(404).json({ error: 'Team not found' });
+    const team = await prisma.team.findFirst({ where: { id: teamId, auctionId: id } });
+    if (!team) {
+      console.log(`[DEBUG] Team not found for teamId=${teamId} and auctionId=${id}`);
+      return res.status(404).json({ error: 'Team not found' });
+    }
 
     const newBudget = parseFloat(budget);
     const spent = team.budget - team.remainingPurse;
@@ -295,7 +310,8 @@ router.put('/:id/teams/:teamId', async (req: any, res: any) => {
         shortName,
         logoUrl: convertGoogleDriveUrl(logoUrl),
         budget: newBudget,
-        remainingPurse: newRemainingPurse
+        remainingPurse: newRemainingPurse,
+        maxPlayers: maxPlayers ? parseInt(maxPlayers) : team.maxPlayers
       }
     });
     res.json({ message: 'Team updated successfully', team: updatedTeam });
@@ -309,17 +325,17 @@ router.put('/:id/teams/:teamId', async (req: any, res: any) => {
 router.post('/:id/players', async (req: any, res: any) => {
   const { id } = req.params;
   const hostId = req.auth.userId;
-  const { name, country, role, basePrice, category, photoUrl } = req.body;
+  const { name, age, role, basePrice, photoUrl } = req.body;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
     const player = await prisma.player.create({
       data: {
-        name, photoUrl: convertGoogleDriveUrl(photoUrl), country, role,
+        name, photoUrl: convertGoogleDriveUrl(photoUrl), age: String(age || ''), role,
         basePrice: parseFloat(basePrice),
-        category, status: 'PENDING',
+        status: 'PENDING',
         auctionId: id
       }
     });
@@ -333,13 +349,13 @@ router.post('/:id/players', async (req: any, res: any) => {
 router.put('/:id/players/:playerId', async (req: any, res: any) => {
   const { id, playerId } = req.params;
   const hostId = req.auth.userId;
-  const { name, country, role, basePrice, category, photoUrl } = req.body;
+  const { name, age, role, basePrice, photoUrl } = req.body;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
-    const player = await prisma.player.findUnique({ where: { id: playerId, auctionId: id } });
+    const player = await prisma.player.findFirst({ where: { id: playerId, auctionId: id } });
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
     if (player.status === 'SOLD') {
@@ -350,10 +366,9 @@ router.put('/:id/players/:playerId', async (req: any, res: any) => {
       where: { id: playerId },
       data: {
         name,
-        country,
+        age: String(age || ''),
         role,
         basePrice: parseFloat(basePrice),
-        category,
         photoUrl: convertGoogleDriveUrl(photoUrl)
       }
     });
@@ -370,10 +385,10 @@ router.delete('/:id/players/:playerId', async (req: any, res: any) => {
   const hostId = req.auth.userId;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
-    const player = await prisma.player.findUnique({ where: { id: playerId, auctionId: id } });
+    const player = await prisma.player.findFirst({ where: { id: playerId, auctionId: id } });
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
     await prisma.$transaction(async (tx) => {
@@ -403,10 +418,10 @@ router.delete('/:id/teams/:teamId', async (req: any, res: any) => {
   const hostId = req.auth.userId;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
-    const team = await prisma.team.findUnique({ where: { id: teamId, auctionId: id } });
+    const team = await prisma.team.findFirst({ where: { id: teamId, auctionId: id } });
     if (!team) return res.status(404).json({ error: 'Team not found' });
 
     // Check if any players are sold to this team
@@ -429,7 +444,7 @@ router.delete('/:id/players', async (req: any, res: any) => {
   const hostId = req.auth.userId;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
     const soldCount = await prisma.player.count({ where: { auctionId: id, status: 'SOLD' } });
@@ -444,13 +459,64 @@ router.delete('/:id/players', async (req: any, res: any) => {
   }
 });
 
+// Reset auction
+router.post('/:id/reset', async (req: any, res: any) => {
+  const { id } = req.params;
+  const hostId = req.auth.userId;
+
+  try {
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
+    if (!auction) return res.status(404).json({ error: 'Auction not found' });
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Reset all players
+      await tx.player.updateMany({
+        where: { auctionId: id },
+        data: {
+          status: 'PENDING',
+          soldPrice: null,
+          teamId: null,
+          isRecalled: false
+        }
+      });
+
+      // 2. Clear all bids (assuming bids are linked to players in this auction, but actually we can just clear all bids for players in this auction)
+      const players = await tx.player.findMany({ where: { auctionId: id }, select: { id: true } });
+      const playerIds = players.map(p => p.id);
+      if (playerIds.length > 0) {
+        await tx.bid.deleteMany({ where: { playerId: { in: playerIds } } });
+      }
+
+      // 3. Reset teams remainingPurse to budget
+      const teams = await tx.team.findMany({ where: { auctionId: id } });
+      for (const team of teams) {
+        await tx.team.update({
+          where: { id: team.id },
+          data: { remainingPurse: team.budget }
+        });
+      }
+
+      // 4. Set auction status to IDLE
+      await tx.auction.update({
+        where: { id: id },
+        data: { status: 'IDLE' }
+      });
+    });
+
+    res.json({ message: 'Auction reset successfully' });
+  } catch (err) {
+    console.error('Reset auction error:', err);
+    res.status(500).json({ error: 'Failed to reset auction' });
+  }
+});
+
 // Clear all teams for specific auction
 router.delete('/:id/teams', async (req: any, res: any) => {
   const { id } = req.params;
   const hostId = req.auth.userId;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
     const soldCount = await prisma.player.count({ where: { auctionId: id, status: 'SOLD' } });
@@ -472,7 +538,7 @@ router.delete('/:id', async (req: any, res: any) => {
   const hostId = req.auth.userId;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
     // Since onDelete: Cascade is configured, this deletes Teams, Players, Bids as well
@@ -493,10 +559,10 @@ router.post('/:id/players/:playerId/reset', async (req: any, res: any) => {
   const hostId = req.auth.userId;
 
   try {
-    const auction = await prisma.auction.findUnique({ where: { id, hostId } });
+    const auction = await prisma.auction.findFirst({ where: { id, hostId } });
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
-    const player = await prisma.player.findUnique({ where: { id: playerId, auctionId: id } });
+    const player = await prisma.player.findFirst({ where: { id: playerId, auctionId: id } });
     if (!player) return res.status(404).json({ error: 'Player not found' });
 
     if (player.status === 'PENDING') {

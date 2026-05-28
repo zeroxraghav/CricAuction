@@ -67,6 +67,7 @@ export default function HostLiveView() {
 
   const selectedTeam = teams.find(t => t.id === selectedTeamId);
   const selectedTeamPurse = selectedTeam ? selectedTeam.remainingPurse : 0;
+  const isTeamFull = selectedTeam ? ((selectedTeam.players?.length || 0) >= (selectedTeam.maxPlayers || 15)) : false;
   
   const ABSOLUTE_MAX_BID = 10000000000; // 1000 Cr
   const parsedBidAmount = (Number(bidAmount) || 0) * 100000;
@@ -74,7 +75,7 @@ export default function HostLiveView() {
 
   const handlePlaceBid = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTeamId || bidAmount === "" || !currentPlayer || isBidExceeding) return;
+    if (!selectedTeamId || bidAmount === "" || !currentPlayer || isBidExceeding || isTeamFull) return;
 
     socket?.emit(SocketEvents.PLACE_BID, {
       auctionId,
@@ -138,7 +139,18 @@ export default function HostLiveView() {
       setSelectedTeamId(latestBid.teamId);
       setBidAmount(latestBid.amount / 100000);
     }
-  }, [status]);
+  }, [status, bidHistory]);
+
+  useEffect(() => {
+    // Automatically pre-select the 2nd last bidder to make bidding faster
+    if (status !== 'EDITING') {
+      if (bidHistory.length >= 2) {
+        setSelectedTeamId(bidHistory[1].teamId);
+      } else {
+        setSelectedTeamId("");
+      }
+    }
+  }, [bidHistory, status]);
 
   useEffect(() => {
     if (!socket) return;
@@ -184,6 +196,7 @@ export default function HostLiveView() {
     socket.on(SocketEvents.PLAYER_UNSOLD, (info: any) => {
       setSoldPopup({
         playerName: info.playerName,
+        playerPhoto: info.playerPhoto,
         teamName: "UNSOLD",
         amount: 0,
       });
@@ -286,7 +299,7 @@ export default function HostLiveView() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.7, opacity: 0 }}
               transition={{ type: "spring", duration: 0.6 }}
-              className="glass-panel rounded-[3rem] p-16 max-w-2xl w-full text-center relative border-2 border-brand/50 shadow-[0_0_120px_rgba(212,175,55,0.4)]"
+              className="glass-panel rounded-3xl md:rounded-[3rem] p-6 md:p-16 max-w-2xl w-full text-center relative border-2 border-brand/50 shadow-[0_0_120px_rgba(212,175,55,0.4)]"
               onClick={e => e.stopPropagation()}
             >
               <button onClick={() => setSoldPopup(null)} className="absolute top-6 right-6 text-gray-400 hover:text-white"><X className="w-7 h-7" /></button>
@@ -308,11 +321,15 @@ export default function HostLiveView() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col md:flex-row items-center justify-center gap-10">
-                  <div className="w-48 h-48 rounded-3xl bg-white/10 border-4 border-red-500/50 flex items-center justify-center text-7xl font-black text-red-500/50 shrink-0">{soldPopup.playerName.charAt(0)}</div>
-                  <div className="text-center md:text-left">
-                    <h2 className="text-5xl md:text-6xl font-black text-red-500 mb-6">UNSOLD</h2>
-                    <p className="text-3xl md:text-4xl font-bold text-white">{soldPopup.playerName}</p>
+                <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10">
+                  {soldPopup.playerPhoto ? (
+                    <img referrerPolicy="no-referrer" src={soldPopup.playerPhoto} alt="" className="w-32 h-32 md:w-48 md:h-48 rounded-3xl object-cover border-4 border-red-500/50 shadow-[0_0_40px_rgba(239,68,68,0.3)] shrink-0" />
+                  ) : (
+                    <div className="w-32 h-32 md:w-48 md:h-48 rounded-3xl bg-white/10 border-4 border-red-500/50 flex items-center justify-center text-5xl md:text-7xl font-black text-red-500/50 shrink-0">{soldPopup.playerName.charAt(0)}</div>
+                  )}
+                  <div className="text-center md:text-left break-words min-w-0">
+                    <h2 className="text-4xl md:text-6xl font-black text-red-500 mb-4 md:mb-6">UNSOLD</h2>
+                    <p className="text-2xl md:text-4xl font-bold text-white break-words">{soldPopup.playerName}</p>
                     <p className="text-gray-400 mt-4 text-xl">No bids were placed</p>
                   </div>
                 </div>
@@ -346,7 +363,7 @@ export default function HostLiveView() {
                 <Shield className="w-12 h-12 text-accent" />
                 <div>
                   <h2 className="text-4xl font-black text-white">{viewingTeam.name} ({viewingTeam.shortName})</h2>
-                  <p className="text-xl text-gray-400">Squad: {viewingTeam.players?.length || 0}/25 &bull; Purse: {fmt(viewingTeam.remainingPurse)}</p>
+                  <p className="text-xl text-gray-400">Squad: {viewingTeam.players?.length || 0}/{viewingTeam.maxPlayers || 15} &bull; Purse: {fmt(viewingTeam.remainingPurse)}</p>
                 </div>
               </div>
 
@@ -415,7 +432,7 @@ export default function HostLiveView() {
                         )}
                         <div className="flex-1">
                           <div className="font-bold text-lg">{p.name}</div>
-                          <div className="text-sm text-gray-400">{p.role} &bull; {p.country}</div>
+                          <div className="text-sm text-gray-400">{p.role} &bull; {p.age ? p.age + ' YRS' : ''}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Base Price</div>
@@ -598,16 +615,16 @@ export default function HostLiveView() {
                 transition={{ type: "spring", duration: 0.8 }}
                 className="flex flex-col items-center w-full"
               >
-                <div className="flex flex-col md:flex-row items-center gap-10 w-full mb-8">
+                <div className="flex flex-col items-center justify-center gap-6 md:gap-10 w-full mb-8">
                   {currentPlayer.photoUrl ? (
                     <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
                   ) : (
                     <div className="w-56 h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
                   )}
 
-                  <div className="flex flex-col items-center md:items-start text-center md:text-left">
-                    <div className="text-2xl font-bold text-accent tracking-widest uppercase mb-4">{currentPlayer.role} &bull; {currentPlayer.country}</div>
-                    <h2 className="text-6xl lg:text-7xl font-black uppercase tracking-tight leading-none" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
+                  <div className="flex flex-col items-center text-center min-w-0 flex-1">
+                    <div className="text-xl md:text-2xl font-bold text-accent tracking-widest uppercase mb-2 md:mb-4">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
+                    <h2 className="text-4xl sm:text-5xl lg:text-7xl font-black uppercase tracking-tight leading-none break-words w-full" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
                       {currentPlayer.name}
                     </h2>
                   </div>
@@ -683,13 +700,23 @@ export default function HostLiveView() {
                               <span className="text-xs text-gray-400 uppercase tracking-widest font-bold">Total Purse</span>
                               <span className="text-sm font-mono font-bold text-gray-300">{fmt(selectedTeamPurse)}</span>
                             </div>
-                            {bidAmount !== "" && (
+                            {bidAmount !== "" && !isTeamFull && (
                               <div className="flex justify-between items-center pt-2 mt-1 border-t border-white/10">
                                 <span className={`text-[10px] uppercase tracking-widest font-bold ${isBidExceeding ? 'text-red-500' : 'text-accent'}`}>
                                   {isBidExceeding ? 'Status' : 'Purse after this bid'}
                                 </span>
                                 <span className={`text-sm font-bold ${isBidExceeding ? 'text-red-500' : 'text-accent font-mono'}`}>
                                   {isBidExceeding ? (parsedBidAmount > ABSOLUTE_MAX_BID ? 'Exceeds limit' : 'Exceeds budget') : fmt(selectedTeamPurse - parsedBidAmount)}
+                                </span>
+                              </div>
+                            )}
+                            {isTeamFull && (
+                              <div className="flex justify-between items-center pt-2 mt-1 border-t border-white/10">
+                                <span className="text-[10px] uppercase tracking-widest font-bold text-red-500">
+                                  Status
+                                </span>
+                                <span className="text-sm font-bold text-red-500">
+                                  Squad is full
                                 </span>
                               </div>
                             )}
@@ -700,7 +727,7 @@ export default function HostLiveView() {
                         <label className="block text-sm font-bold text-gray-400 mb-3 uppercase tracking-widest">Bid (in Lakhs)</label>
                         <input 
                           type="number" 
-                          step="0.05"
+                          step="0.5"
                           required 
                           value={bidAmount} 
                           onChange={e => setBidAmount(e.target.value ? Number(e.target.value) : "")} 
@@ -726,7 +753,7 @@ export default function HostLiveView() {
                       </div>
                       
                       {status === 'ACTIVE' && (
-                        <button type="submit" disabled={!selectedTeamId || bidAmount === "" || !!isBidExceeding} className="w-full md:w-auto bg-brand text-black font-black py-5 px-8 rounded-xl hover:bg-yellow-400 transition shadow-[0_0_15px_rgba(212,175,55,0.4)] disabled:opacity-50 disabled:cursor-not-allowed self-start md:mt-8">
+                        <button type="submit" disabled={!selectedTeamId || bidAmount === "" || !!isBidExceeding || isTeamFull} className="w-full md:w-auto bg-brand text-black font-black py-5 px-8 rounded-xl hover:bg-yellow-400 transition shadow-[0_0_15px_rgba(212,175,55,0.4)] disabled:opacity-50 disabled:cursor-not-allowed self-start md:mt-8">
                           PLACE BID
                         </button>
                       )}
@@ -744,7 +771,7 @@ export default function HostLiveView() {
                           <button type="button" onClick={() => socket?.emit(SocketEvents.REMOVE_BID, { auctionId })} className="bg-red-500/20 text-red-500 border border-red-500/50 font-bold py-2 px-6 rounded-xl hover:bg-red-500/30 transition">
                             Remove Bid
                           </button>
-                          <button type="submit" disabled={!selectedTeamId || !bidAmount || !!isBidExceeding} className="bg-yellow-500 text-black font-black py-2 px-8 rounded-xl hover:bg-yellow-400 transition shadow-[0_0_15px_rgba(234,179,8,0.4)] disabled:opacity-50 disabled:cursor-not-allowed">
+                          <button type="submit" disabled={!selectedTeamId || !bidAmount || !!isBidExceeding || isTeamFull} className="bg-yellow-500 text-black font-black py-2 px-8 rounded-xl hover:bg-yellow-400 transition shadow-[0_0_15px_rgba(234,179,8,0.4)] disabled:opacity-50 disabled:cursor-not-allowed">
                             UPDATE BID
                           </button>
                         </div>
@@ -767,7 +794,7 @@ export default function HostLiveView() {
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center text-gray-500"
+                className="flex flex-col items-center justify-center text-gray-500 text-center w-full"
               >
                 <Trophy className={`w-32 h-32 mb-8 ${showEndPrompt ? 'text-brand opacity-100' : 'opacity-20'}`} />
                 {showEndPrompt ? (
@@ -778,7 +805,7 @@ export default function HostLiveView() {
                     </button>
                   </>
                 ) : (
-                  <h2 className="text-4xl font-black uppercase tracking-widest">Waiting for next player</h2>
+                  <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest text-center w-full">Waiting for next player</h2>
                 )}
               </motion.div>
             )}

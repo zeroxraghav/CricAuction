@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum PlayerRole {
@@ -47,6 +48,7 @@ model Team {
   logoUrl        String?
   budget         Float
   remainingPurse Float
+  maxPlayers     Int      @default(15)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -64,12 +66,12 @@ model Player {
   id          String       @id @default(uuid())
   name        String
   photoUrl    String?
-  country     String
+  age         String
   role        PlayerRole
   basePrice   Float
   soldPrice   Float?
-  category    String?
   status      PlayerStatus @default(PENDING)
+  isRecalled  Boolean      @default(false)
   stats       Json?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
