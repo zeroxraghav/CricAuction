@@ -615,64 +615,70 @@ export default function HostLiveView() {
                 transition={{ type: "spring", duration: 0.8 }}
                 className="flex flex-col items-center w-full"
               >
-                <div className="flex flex-col items-center justify-center gap-6 md:gap-10 w-full mb-8">
-                  {currentPlayer.photoUrl ? (
-                    <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-56 h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
-                  ) : (
-                    <div className="w-56 h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
-                  )}
+                <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 lg:gap-8 mt-auto mb-auto">
+                  {/* TOP ROW: Photo & Name */}
+                  <div className="flex flex-col md:flex-row gap-6 lg:gap-8 w-full items-center md:items-stretch">
+                    <div className="w-full md:w-[240px] lg:w-[280px] shrink-0 flex justify-center">
+                      {currentPlayer.photoUrl ? (
+                        <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-48 h-48 md:w-full md:h-[240px] lg:h-[280px] rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50" />
+                      ) : (
+                        <div className="w-48 h-48 md:w-full md:h-[240px] lg:h-[280px] rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-6xl md:text-7xl font-black text-white/20">{currentPlayer.name.charAt(0)}</div>
+                      )}
+                    </div>
 
-                  <div className="flex flex-col items-center text-center min-w-0 flex-1">
-                    <div className="text-xl md:text-2xl font-bold text-accent tracking-widest uppercase mb-2 md:mb-4">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
-                    <h2 className="text-4xl sm:text-5xl lg:text-7xl font-black uppercase tracking-tight leading-none break-words w-full" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
-                      {currentPlayer.name}
-                    </h2>
+                    <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left min-w-0">
+                      <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
+                      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none break-words" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
+                        {currentPlayer.name}
+                      </h2>
+                    </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-8 w-full max-w-4xl">
-                  {/* Current Bid */}
-                  <div className={`p-8 rounded-3xl border-2 flex flex-col items-center justify-center transition-colors duration-500 ${currentBid > 0 ? 'bg-brand/20 border-brand/50 shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'bg-white/5 border-white/10'}`}>
-                     <div className="text-gray-400 uppercase tracking-widest font-bold mb-2">Current Bid</div>
-                     <div className={`text-5xl font-black ${currentBid > 0 ? 'text-brand' : 'text-gray-500'}`}>
-                       {currentBid === 0 ? "WAITING" : fmt(currentBid)}
-                     </div>
-                     {highestTeamName && (
-                       <div className="mt-4 flex flex-col items-center">
-                         <div className="text-xl font-bold text-white bg-black/50 px-6 py-2 rounded-full border border-white/20">
-                           {highestTeamName} LEADS
+                  {/* BOTTOM ROW: Bids */}
+                  <div className="flex flex-col md:flex-row gap-6 lg:gap-8 w-full relative">
+                    <div className="w-full md:w-[240px] lg:w-[280px] shrink-0">
+                      <div className={`w-full h-full p-4 lg:p-6 rounded-3xl border-2 flex flex-col items-center justify-center transition-colors duration-500 text-center ${currentBid > 0 ? 'bg-brand/20 border-brand/50 shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'bg-white/5 border-white/10'}`}>
+                         <div className="text-sm lg:text-base text-gray-400 uppercase tracking-widest font-bold mb-1">Current Bid</div>
+                         <div className={`text-4xl lg:text-5xl font-black ${currentBid > 0 ? 'text-brand' : 'text-gray-500'}`}>
+                           {currentBid === 0 ? "WAITING" : fmt(currentBid)}
                          </div>
-                         <div className="flex gap-2 mt-3">
-                           {status === 'ACTIVE' && (
-                             <>
-                               <button onClick={() => socket?.emit(SocketEvents.EDIT_BID_START, { auctionId })} className="text-[10px] uppercase font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition">
-                                 ✎ Edit Bid
-                               </button>
-                               <button onClick={() => socket?.emit(SocketEvents.UNDO_BID, { auctionId })} className="text-[10px] uppercase font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-full border border-red-500/20 transition">
-                                 ↩ Undo
-                               </button>
-                             </>
-                           )}
-                         </div>
-                         {teams.find(t => t.shortName === highestTeamName) && (
-                           <div className="text-sm text-gray-400 mt-2 font-mono">
-                             Purse: {fmt(teams.find(t => t.shortName === highestTeamName).remainingPurse)}
+                         {highestTeamName && (
+                           <div className="mt-3 flex flex-col items-center">
+                             <div className="text-sm lg:text-base font-bold text-white bg-black/50 px-4 py-1.5 rounded-full border border-white/20">
+                               {highestTeamName} LEADS
+                             </div>
+                             <div className="flex gap-2 mt-2">
+                               {status === 'ACTIVE' && (
+                                 <>
+                                   <button onClick={() => socket?.emit(SocketEvents.EDIT_BID_START, { auctionId })} className="text-[10px] uppercase font-bold text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition">
+                                     ✎ Edit
+                                   </button>
+                                   <button onClick={() => socket?.emit(SocketEvents.UNDO_BID, { auctionId })} className="text-[10px] uppercase font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-full border border-red-500/20 transition">
+                                     ↩ Undo
+                                   </button>
+                                 </>
+                               )}
+                             </div>
+                             {teams.find(t => t.shortName === highestTeamName) && (
+                               <div className="text-xs text-gray-400 mt-2 font-mono">
+                                 Purse: {fmt(teams.find(t => t.shortName === highestTeamName).remainingPurse)}
+                               </div>
+                             )}
                            </div>
                          )}
-                       </div>
-                     )}
-                  </div>
+                      </div>
+                    </div>
 
-                  {/* Base Price + Bid Count */}
-                  <div className="flex flex-col gap-6">
-                     <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex justify-between items-center">
-                       <span className="text-gray-400 uppercase tracking-widest font-bold">Base Price</span>
-                       <span className="text-2xl font-bold text-white">{fmt(currentPlayer.basePrice)}</span>
-                     </div>
-                     <div className="flex-1 bg-white/5 border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center">
-                       <div className="text-gray-400 uppercase tracking-widest font-bold mb-2">Total Bids</div>
-                       <div className="text-6xl font-black text-white">{bidHistory.length}</div>
-                     </div>
+                    <div className="flex-1 flex flex-col gap-4 lg:gap-6 min-w-0">
+                       <div className="bg-white/5 border border-white/10 p-4 lg:p-5 rounded-3xl flex justify-between items-center">
+                         <span className="text-sm lg:text-base text-gray-400 uppercase tracking-widest font-bold">Base Price</span>
+                         <span className="text-xl lg:text-2xl font-bold text-white">{fmt(currentPlayer.basePrice)}</span>
+                       </div>
+                       <div className="flex-1 bg-white/5 border border-white/10 rounded-3xl p-4 lg:p-5 flex flex-col items-center justify-center">
+                         <div className="text-sm lg:text-base text-gray-400 uppercase tracking-widest font-bold mb-1">Total Bids</div>
+                         <div className="text-5xl lg:text-6xl font-black text-white">{bidHistory.length}</div>
+                       </div>
+                    </div>
                   </div>
                 </div>
 

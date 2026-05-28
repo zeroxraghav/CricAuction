@@ -715,7 +715,7 @@ export default function SpectatorView() {
       </AnimatePresence>
 
         {/* Left: Player Presentation */}
-        <div className="flex-1 flex flex-col justify-center items-center relative glass-panel rounded-[3rem] p-4 md:p-12 border border-white/10 overflow-hidden">
+        <div className="flex-1 flex flex-col justify-center items-center relative glass-panel rounded-[3rem] p-12 border border-white/10 overflow-hidden">
           
           <AnimatePresence mode="wait">
             {currentPlayer ? (
@@ -725,58 +725,64 @@ export default function SpectatorView() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 1.1, filter: "blur(10px)" }}
                 transition={{ type: "spring", duration: 0.8 }}
-                className="flex flex-col items-center justify-center w-full max-w-4xl mx-auto h-full"
+                className="flex flex-col items-center w-full"
               >
-                <div className="flex flex-col items-center justify-center gap-4 md:gap-10 w-full mb-8 mt-auto">
-                  {currentPlayer.photoUrl ? (
-                    <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-40 h-40 md:w-56 md:h-56 rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50 shrink-0" />
-                  ) : (
-                    <div className="w-40 h-40 md:w-56 md:h-56 rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-7xl md:text-8xl font-black text-white/20 shrink-0">{currentPlayer.name.charAt(0)}</div>
-                  )}
-
-                  <div className="flex flex-col items-center text-center min-w-0 flex-1 px-4">
-                    <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-1 md:mb-4">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
-                    <h2 className="text-3xl sm:text-5xl lg:text-7xl font-black uppercase tracking-tight leading-none break-words whitespace-normal w-full" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
-                      {currentPlayer.name}
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 w-full max-w-4xl mb-auto px-4 relative">
-                  {/* EDITING OVERLAY */}
-                  {status === 'EDITING' && (
-                    <div className="absolute inset-0 z-30 bg-black/70 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center border border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.2)]">
-                      <div className="w-12 h-12 rounded-full border-4 border-yellow-500 border-t-transparent animate-spin mb-4"></div>
-                      <h3 className="text-2xl font-black text-white uppercase tracking-widest text-center">
-                        <span className="text-yellow-500">{highestTeamName}</span> is editing their bid...
-                      </h3>
-                      <p className="text-gray-400 mt-2">Please wait for the host to confirm.</p>
+                <div className="w-full max-w-5xl mx-auto flex flex-col gap-6 lg:gap-8 mt-auto mb-auto">
+                  {/* TOP ROW: Photo & Name */}
+                  <div className="flex flex-col md:flex-row gap-6 lg:gap-8 w-full items-center md:items-stretch">
+                    <div className="w-full md:w-[240px] lg:w-[280px] shrink-0 flex justify-center">
+                      {currentPlayer.photoUrl ? (
+                        <img referrerPolicy="no-referrer" src={currentPlayer.photoUrl} alt={currentPlayer.name} className="w-48 h-48 md:w-full md:h-[240px] lg:h-[280px] rounded-3xl object-cover border-4 border-brand/50 shadow-[0_0_30px_rgba(212,175,55,0.3)] bg-black/50" />
+                      ) : (
+                        <div className="w-48 h-48 md:w-full md:h-[240px] lg:h-[280px] rounded-3xl bg-white/10 border-4 border-white/10 flex items-center justify-center text-6xl md:text-7xl font-black text-white/20">{currentPlayer.name.charAt(0)}</div>
+                      )}
                     </div>
-                  )}
-                  
-                  {/* Current Bid */}
-                  <div className={`p-6 md:p-8 rounded-3xl border-2 flex flex-col items-center justify-center transition-colors duration-500 text-center ${currentBid > 0 ? 'bg-brand/20 border-brand/50 shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'bg-white/5 border-white/10'}`}>
-                     <div className="text-gray-400 uppercase tracking-widest font-bold mb-2">Current Bid</div>
-                     <div className={`text-4xl md:text-5xl font-black ${currentBid > 0 ? 'text-brand' : 'text-gray-500'}`}>
-                       {currentBid === 0 ? "WAITING" : fmt(currentBid)}
-                     </div>
-                     {highestTeamName && (
-                       <div className="mt-4 text-xl font-bold text-white bg-black/50 px-6 py-2 rounded-full border border-white/20">
-                         {highestTeamName} LEADS
-                       </div>
-                     )}
+
+                    <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left min-w-0">
+                      <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
+                      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none break-words" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
+                        {currentPlayer.name}
+                      </h2>
+                    </div>
                   </div>
 
-                  {/* Base Price + Bid Count */}
-                  <div className="flex flex-col gap-6">
-                     <div className="bg-white/5 border border-white/10 p-6 rounded-3xl flex justify-between items-center">
-                       <span className="text-gray-400 uppercase tracking-widest font-bold">Base Price</span>
-                       <span className="text-2xl font-bold text-white">{fmt(currentPlayer.basePrice)}</span>
-                     </div>
-                     <div className="flex-1 bg-white/5 border border-white/10 rounded-3xl p-6 flex flex-col items-center justify-center">
-                       <div className="text-gray-400 uppercase tracking-widest font-bold mb-2">Total Bids</div>
-                       <div className="text-6xl font-black text-white">{bidHistory.length}</div>
-                     </div>
+                  {/* BOTTOM ROW: Bids */}
+                  <div className="flex flex-col md:flex-row gap-6 lg:gap-8 w-full relative">
+                    {/* EDITING OVERLAY */}
+                    {status === 'EDITING' && (
+                      <div className="absolute inset-0 z-30 bg-black/70 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center border border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.2)]">
+                        <div className="w-12 h-12 rounded-full border-4 border-yellow-500 border-t-transparent animate-spin mb-4"></div>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-widest text-center">
+                          <span className="text-yellow-500">{highestTeamName}</span> is editing their bid...
+                        </h3>
+                        <p className="text-gray-400 mt-2">Please wait for the host to confirm.</p>
+                      </div>
+                    )}
+
+                    <div className="w-full md:w-[240px] lg:w-[280px] shrink-0">
+                      <div className={`w-full h-full p-4 lg:p-6 rounded-3xl border-2 flex flex-col items-center justify-center transition-colors duration-500 text-center ${currentBid > 0 ? 'bg-brand/20 border-brand/50 shadow-[0_0_50px_rgba(212,175,55,0.3)]' : 'bg-white/5 border-white/10'}`}>
+                         <div className="text-sm lg:text-base text-gray-400 uppercase tracking-widest font-bold mb-1">Current Bid</div>
+                         <div className={`text-4xl lg:text-5xl font-black ${currentBid > 0 ? 'text-brand' : 'text-gray-500'}`}>
+                           {currentBid === 0 ? "WAITING" : fmt(currentBid)}
+                         </div>
+                         {highestTeamName && (
+                           <div className="mt-3 text-sm lg:text-base font-bold text-white bg-black/50 px-4 py-1.5 rounded-full border border-white/20">
+                             {highestTeamName} LEADS
+                           </div>
+                         )}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col gap-4 lg:gap-6 min-w-0">
+                       <div className="bg-white/5 border border-white/10 p-4 lg:p-5 rounded-3xl flex justify-between items-center">
+                         <span className="text-sm lg:text-base text-gray-400 uppercase tracking-widest font-bold">Base Price</span>
+                         <span className="text-xl lg:text-2xl font-bold text-white">{fmt(currentPlayer.basePrice)}</span>
+                       </div>
+                       <div className="flex-1 bg-white/5 border border-white/10 rounded-3xl p-4 lg:p-5 flex flex-col items-center justify-center">
+                         <div className="text-sm lg:text-base text-gray-400 uppercase tracking-widest font-bold mb-1">Total Bids</div>
+                         <div className="text-5xl lg:text-6xl font-black text-white">{bidHistory.length}</div>
+                       </div>
+                    </div>
                   </div>
                 </div>
               </motion.div>

@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trophy, Plus, Settings, Play, Users, Trash2, Copy, Check, BarChart3 } from "lucide-react";
+import { Trophy, Plus, Settings, Play, Users, Trash2, Copy, Check, BarChart3, FileText, RotateCcw } from "lucide-react";
 import { useUser, useAuth } from "@clerk/nextjs";
+import toast from "react-hot-toast";
 
 export default function Home() {
   const router = useRouter();
@@ -81,6 +82,50 @@ export default function Home() {
       fetchAuctions();
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleDownloadPDF = async (auctionId: string) => {
+    toast.loading("Generating PDF...", { id: `pdf-${auctionId}` });
+    try {
+      const token = await getToken();
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const [aucRes, teamsRes, playersRes] = await Promise.all([
+        fetch(`${apiUrl}/api/public/auctions/${auctionId}`, { headers: { "Authorization": `Bearer ${token}` } }),
+        fetch(`${apiUrl}/api/public/auctions/${auctionId}/teams`, { headers: { "Authorization": `Bearer ${token}` } }),
+        fetch(`${apiUrl}/api/public/auctions/${auctionId}/players`, { headers: { "Authorization": `Bearer ${token}` } })
+      ]);
+      if (aucRes.ok && teamsRes.ok && playersRes.ok) {
+        const [auctionInfo, teams, players] = await Promise.all([aucRes.json(), teamsRes.json(), playersRes.json()]);
+        const { exportAuctionSummaryPDF } = await import('@/lib/pdfExport');
+        await exportAuctionSummaryPDF(auctionInfo, teams, players);
+        toast.success("PDF Downloaded!", { id: `pdf-${auctionId}` });
+      } else {
+        toast.error("Failed to fetch data", { id: `pdf-${auctionId}` });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Error generating PDF", { id: `pdf-${auctionId}` });
+    }
+  };
+
+  const handleResetAuction = async (auctionId: string) => {
+    if (!confirm("Are you sure you want to RESET the entire auction? All sold players will become UNSOLD, and all team budgets will be reset.")) return;
+    try {
+      const token = await getToken();
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/auctions/${auctionId}/reset`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        toast.success("Auction reset successfully!");
+        fetchAuctions();
+      } else {
+        toast.error("Failed to reset auction");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("An error occurred");
     }
   };
 
@@ -214,9 +259,17 @@ export default function Home() {
                       </Link>
                     )}
                     {auction.status === 'COMPLETED' ? (
-                      <a href={`/live/${auction.id}`} target="_blank" rel="noopener noreferrer" className="flex-1 md:flex-none flex items-center justify-center gap-2 border px-5 py-3 rounded-xl font-bold bg-accent/20 text-accent border-accent/50 hover:bg-accent/30 transition">
-                        <BarChart3 className="w-4 h-4" /> View Stats
-                      </a>
+                      <>
+                        <a href={`/live/${auction.id}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 border px-4 py-2.5 rounded-xl font-bold bg-accent/20 text-accent border-accent/50 hover:bg-accent/30 transition text-sm">
+                          <BarChart3 className="w-4 h-4" /> View Stats
+                        </a>
+                        <button onClick={() => handleDownloadPDF(auction.id)} className="flex items-center justify-center gap-2 border px-4 py-2.5 rounded-xl font-bold bg-indigo-500/20 text-indigo-400 border-indigo-500/50 hover:bg-indigo-500/30 transition text-sm">
+                          <FileText className="w-4 h-4" /> PDF
+                        </button>
+                        <button onClick={() => handleResetAuction(auction.id)} className="flex items-center justify-center gap-2 border px-4 py-2.5 rounded-xl font-bold bg-yellow-500/20 text-yellow-500 border-yellow-500/50 hover:bg-yellow-500/30 transition text-sm">
+                          <RotateCcw className="w-4 h-4" /> Reset
+                        </button>
+                      </>
                     ) : (
                       <Link href={`/host/${auction.id}/live`} className={`flex-1 md:flex-none flex items-center justify-center gap-2 border px-5 py-3 rounded-xl font-bold transition ${auction.status === 'ACTIVE' ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.3)]' : 'bg-brand/20 text-brand hover:bg-brand/30 border-brand/50'}`}>
                         <Play className="w-4 h-4" /> {auction.status === 'ACTIVE' ? 'Resume Live' : 'Host Live'}

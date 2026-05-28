@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Upload, Users, Shield, PlusCircle, UserPlus, PlayCircle, ImageIcon, ArrowLeft, RotateCcw, Trash2, Pencil, Download } from "lucide-react";
+import { Upload, Users, Shield, PlusCircle, UserPlus, PlayCircle, ImageIcon, ArrowLeft, RotateCcw, Trash2, Pencil, Download, FileText } from "lucide-react";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import { exportAuctionSummaryPDF } from "@/lib/pdfExport";
 
 const fmt = (n: number) => (n / 100000).toLocaleString("en-IN", { maximumFractionDigits: 2 }) + 'L';
 
@@ -456,132 +457,13 @@ export default function AdminSetup() {
     URL.revokeObjectURL(url);
   };
 
-  const handleExportData = () => {
-    const getRoleColor = (role: string) => {
-      if (role.includes('BAT')) return 'background: #dbeafe; color: #1e40af;';
-      if (role.includes('BOWL')) return 'background: #dcfce7; color: #166534;';
-      if (role.includes('ALL')) return 'background: #fef9c3; color: #854d0e;';
-      if (role.includes('WICKET')) return 'background: #f3e8ff; color: #6b21a8;';
-      return 'background: #f1f5f9; color: #475569;'; // Default for Volleyball/Others
-    };
-
-    let html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <title>Auction Summary - ${auctionInfo?.name || 'BidArena'}</title>
-      <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background: #f8fafc; padding: 40px; color: #0f172a; }
-        .header-title { text-align: center; color: #1e293b; margin-bottom: 40px; font-size: 32px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; }
-        .team-container { background: white; border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
-        .team-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 20px; }
-        .team-name { font-size: 24px; font-weight: bold; color: #2563eb; display: flex; align-items: center; gap: 12px; }
-        .team-logo { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
-        .stats { display: flex; gap: 12px; flex-wrap: wrap; }
-        .stat-badge { background: #f1f5f9; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 14px; border: 1px solid #e2e8f0; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #f8fafc; text-align: left; padding: 12px; font-weight: 600; color: #475569; border-bottom: 2px solid #e2e8f0; }
-        td { padding: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-        .player-row:hover { background: #f8fafc; }
-        .role-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-        .price { font-family: monospace; font-weight: bold; font-size: 14px; }
-        .unsold-container { background: #fff1f2; border: 1px solid #ffe4e6; box-shadow: none; }
-        .unsold-title { color: #e11d48; border-bottom-color: #fecdd3; }
-        .unsold-th { border-bottom-color: #fecdd3; background: #fff1f2; }
-      </style>
-    </head>
-    <body>
-      <div class="header-title">${auctionInfo?.name || 'BidArena'} - Auction Summary</div>
-    `;
-
-    teams.forEach(team => {
-      const spent = team.budget - team.remainingPurse;
-      html += `
-      <div class="team-container">
-        <div class="team-header">
-          <div class="team-name">
-            ${team.logoUrl ? `<img src="${team.logoUrl}" class="team-logo" />` : ''}
-            ${team.name}
-          </div>
-          <div class="stats">
-            <div class="stat-badge">Total Budget: ${fmt(team.budget)}</div>
-            <div class="stat-badge" style="background: #fef2f2; color: #991b1b;">Spent: ${fmt(spent)}</div>
-            <div class="stat-badge" style="background: #f0fdf4; color: #166534;">Remaining: ${fmt(team.remainingPurse)}</div>
-            <div class="stat-badge">Squad Size: ${team.players?.length || 0}</div>
-          </div>
-        </div>
-        ${team.players && team.players.length > 0 ? `
-        <table>
-          <thead>
-            <tr>
-              <th>Player Name</th>
-              <th>Role</th>
-              <th>Base Price</th>
-              <th>Sold Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${team.players.map((p: any) => `
-            <tr class="player-row">
-              <td style="font-weight: bold;">${p.name}</td>
-              <td><span class="role-badge" style="${getRoleColor(p.role)}">${p.role}</span></td>
-              <td class="price" style="color: #64748b;">${fmt(p.basePrice)}</td>
-              <td class="price text-green-600">${fmt(p.soldPrice)}</td>
-            </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        ` : '<div style="color: #64748b; font-style: italic;">No players bought yet.</div>'}
-      </div>
-      `;
-    });
-
-    const unsold = players.filter(p => p.status === 'UNSOLD');
-    if (unsold.length > 0) {
-      html += `
-      <div class="team-container unsold-container">
-        <div class="team-header unsold-title">
-          <div class="team-name" style="color: #e11d48;">Unsold Players</div>
-          <div class="stat-badge" style="background: #ffe4e6; color: #be123c; border-color: #fecdd3;">Count: ${unsold.length}</div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th class="unsold-th">Player Name</th>
-              <th class="unsold-th">Role</th>
-              <th class="unsold-th">Base Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${unsold.map((p: any) => `
-            <tr class="player-row">
-              <td style="font-weight: bold;">${p.name}</td>
-              <td><span class="role-badge" style="${getRoleColor(p.role)}">${p.role}</span></td>
-              <td class="price">${fmt(p.basePrice)}</td>
-            </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-      `;
-    }
-
-    html += `
-    </body>
-    </html>
-    `;
-
-    const blob = new Blob([html], { type: "text/html" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Auction_Summary_${auctionInfo?.name || "BidArena"}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const exportAuctionSummaryPDFHandler = () => {
+    exportAuctionSummaryPDF(auctionInfo, teams, players);
   };
+
+  const filteredPlayers = players
+    .filter((p: any) => playerFilter === "ALL" || p.status === playerFilter)
+    .filter((p: any) => playerFilter !== "SOLD" || teamFilter === "ALL" || p.teamId === teamFilter);
 
   return (
     <div className="min-h-screen p-4 md:p-8 flex flex-col relative overflow-hidden bg-[#0a0f1a] text-white">
@@ -601,10 +483,10 @@ export default function AdminSetup() {
             <RotateCcw className="w-5 h-5" /> <span className="hidden md:inline">{resettingAuction ? "Resetting..." : "Reset"}</span>
           </button>
           <button 
-            onClick={handleExportData}
-            className="bg-white/10 text-white font-bold px-4 md:px-6 py-3 rounded-xl flex items-center gap-2 hover:bg-white/20 transition-all border border-white/20"
+            onClick={exportAuctionSummaryPDFHandler}
+            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold transition shadow-[0_0_15px_rgba(99,102,241,0.4)]"
           >
-            <Download className="w-5 h-5" /> <span className="hidden md:inline">Export Summary</span>
+            <FileText className="w-5 h-5" /> <span className="hidden md:inline">Export PDF</span>
           </button>
           <button 
             onClick={() => router.push(`/host/${auctionId}/live`)}
@@ -788,7 +670,7 @@ export default function AdminSetup() {
           <div className="glass-panel rounded-3xl p-6 flex flex-col h-1/2 border border-white/10 overflow-hidden">
              <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 sticky top-0 bg-[#0a0f1a]/80 backdrop-blur-md z-10 pb-2 border-b border-white/5 gap-2">
                <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                 <h2 className="text-xl font-bold flex items-center gap-2 mr-2"><Users className="text-brand" /> Player Database ({players.length})</h2>
+                 <h2 className="text-xl font-bold flex items-center gap-2 mr-2"><Users className="text-brand" /> Player Database ({filteredPlayers.length})</h2>
                  <select 
                    value={playerFilter} 
                    onChange={(e) => setPlayerFilter(e.target.value)}
@@ -824,10 +706,7 @@ export default function AdminSetup() {
                )}
              </div>
              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-max pb-4">
-               {players
-                 .filter(p => playerFilter === "ALL" || p.status === playerFilter)
-                 .filter(p => playerFilter !== "SOLD" || teamFilter === "ALL" || p.teamId === teamFilter)
-                 .map(p => (
+               {filteredPlayers.map(p => (
                  <div key={p.id} className="bg-white/5 border border-white/10 p-4 rounded-3xl flex flex-col gap-1 hover:border-white/30 transition relative group">
                    <div className="flex items-start gap-4 w-full">
                      {p.photoUrl ? (
@@ -885,7 +764,7 @@ export default function AdminSetup() {
                    </div>
                  </div>
                ))}
-               {players.length === 0 && <div className="col-span-full text-center text-gray-500 py-10">No players added yet</div>}
+               {filteredPlayers.length === 0 && <div className="col-span-full text-center text-gray-500 py-10">{players.length === 0 ? "No players added yet" : "No players found"}</div>}
              </div>
           </div>
 
