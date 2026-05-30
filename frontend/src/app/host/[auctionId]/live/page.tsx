@@ -545,7 +545,7 @@ export default function HostLiveView() {
                <span className="font-bold hidden sm:inline">Unsold</span>
              </button>
           </div>
-        </header>      <main className="flex-1 flex flex-col xl:flex-row p-4 md:p-6 gap-6 z-10 min-h-[calc(100vh-100px)] xl:h-[calc(100vh-100px)] overflow-y-auto xl:overflow-hidden relative">
+        </header>      <main className={`flex-1 flex flex-col xl:flex-row p-4 md:p-6 gap-6 z-10 relative ${status === 'PAUSED' ? 'h-[calc(100vh-100px)] overflow-hidden' : 'min-h-[calc(100vh-100px)] xl:h-[calc(100vh-100px)] overflow-y-auto xl:overflow-hidden'}`}>
       {/* STATS MODAL (PAUSED) */}
       <AnimatePresence>
         {status === 'PAUSED' && (
@@ -560,11 +560,15 @@ export default function HostLiveView() {
                 <Clock className="w-8 h-8 text-yellow-500 animate-pulse" />
                 <h2 className="text-3xl font-black uppercase tracking-widest text-yellow-500">Auction Paused</h2>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 flex-1 overflow-y-auto custom-scrollbar pb-4 pr-2">
                 {[...teams].sort((a, b) => b.budget - b.remainingPurse - (a.budget - a.remainingPurse)).map((team, i) => {
                   const spent = team.budget - team.remainingPurse;
                   return (
-                    <div key={team.id} className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col gap-3 relative overflow-hidden h-full">
+                    <div 
+                      key={team.id} 
+                      onClick={() => setViewingTeam(team)}
+                      className="glass-panel p-4 rounded-2xl border border-white/10 flex flex-col gap-3 relative overflow-hidden min-h-[280px] lg:h-full cursor-pointer hover:border-brand/50 transition-colors group"
+                    >
                       {i === 0 && <div className="absolute top-0 left-0 right-0 h-1 bg-brand shadow-[0_0_10px_rgba(212,175,55,1)]" />}
                       <div className="flex justify-between items-start shrink-0">
                         <div>
@@ -596,8 +600,13 @@ export default function HostLiveView() {
                       </div>
                       
                       <div className="shrink-0 border-t border-white/10 pt-3 flex justify-between items-center">
-                        <span className="text-xs text-gray-500 uppercase font-bold tracking-widest">Spent</span>
-                        <span className="font-mono font-bold text-sm text-white">{fmt(spent)}</span>
+                        <span className="text-xs text-brand uppercase font-bold tracking-widest group-hover:underline flex items-center gap-1 transition-all">
+                          View Squad <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </span>
+                        <div className="text-right">
+                          <span className="font-mono font-bold text-sm text-white">{fmt(spent)}</span>
+                          <span className="text-[10px] text-gray-500 uppercase font-bold tracking-widest ml-2">Spent</span>
+                        </div>
                       </div>
                     </div>
                   );
