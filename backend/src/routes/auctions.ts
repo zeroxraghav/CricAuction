@@ -168,17 +168,46 @@ router.post('/:id/players/csv', csvUpload.single('file'), async (req: any, res: 
             basePrice = basePrice * 100000;
           }
 
+          const retainedTeamName = normalized.retainedteam || normalized.team || '';
+
           return {
             name,
             photoUrl,
             age,
             role: roleInput as PlayerRole,
             basePrice,
-            auctionId: id
+            auctionId: id,
+            _retainedTeamName: retainedTeamName
           };
         });
 
-        await prisma.player.createMany({ data: validPlayers, skipDuplicates: true });
+        const teams = await prisma.team.findMany({ where: { auctionId: id } });
+        const finalPlayers = [];
+
+        for (const p of validPlayers) {
+          const tName = p._retainedTeamName;
+
+          const playerData: any = {
+            name: p.name,
+            photoUrl: p.photoUrl,
+            age: p.age,
+            role: p.role,
+            basePrice: p.basePrice,
+            auctionId: p.auctionId
+          };
+
+          if (tName) {
+            const team = teams.find(t => t.name.toLowerCase() === tName.toLowerCase() || t.shortName.toLowerCase() === tName.toLowerCase());
+            if (team) {
+              playerData.status = 'RETAINED';
+              playerData.teamId = team.id;
+              playerData.soldPrice = null;
+            }
+          }
+          finalPlayers.push(playerData);
+        }
+
+        await prisma.player.createMany({ data: finalPlayers, skipDuplicates: true });
         fs.unlinkSync(req.file.path);
         res.json({ message: 'Players imported successfully', count: validPlayers.length });
       } catch (err: any) {
@@ -325,7 +354,7 @@ router.put('/:id/teams/:teamId', async (req: any, res: any) => {
 router.post('/:id/players', async (req: any, res: any) => {
   const { id } = req.params;
   const hostId = req.auth.userId;
-  const { name, age, role, basePrice, photoUrl } = req.body;
+  const { name, age, role, basePrice, photoUrl, retainedTeamId } = req.body;
 
   try {
     const auction = await prisma.auction.findFirst({ where: { id, hostId } });
@@ -335,7 +364,8 @@ router.post('/:id/players', async (req: any, res: any) => {
       data: {
         name, photoUrl: convertGoogleDriveUrl(photoUrl), age: String(age || ''), role,
         basePrice: parseFloat(basePrice),
-        status: 'PENDING',
+        status: retainedTeamId ? 'RETAINED' : 'PENDING',
+        teamId: retainedTeamId || null,
         auctionId: id
       }
     });
@@ -349,7 +379,7 @@ router.post('/:id/players', async (req: any, res: any) => {
 router.put('/:id/players/:playerId', async (req: any, res: any) => {
   const { id, playerId } = req.params;
   const hostId = req.auth.userId;
-  const { name, age, role, basePrice, photoUrl } = req.body;
+  const { name, age, role, basePrice, photoUrl, retainedTeamId } = req.body;
 
   try {
     const auction = await prisma.auction.findFirst({ where: { id, hostId } });
@@ -362,6 +392,17 @@ router.put('/:id/players/:playerId', async (req: any, res: any) => {
       return res.status(400).json({ error: 'Cannot edit a player who has already been sold' });
     }
 
+    let newStatus = player.status;
+    let newTeamId = player.teamId;
+
+    if (retainedTeamId) {
+       newStatus = 'RETAINED';
+       newTeamId = retainedTeamId;
+    } else if (player.status === 'RETAINED' && !retainedTeamId) {
+       newStatus = 'PENDING';
+       newTeamId = null;
+    }
+
     const updatedPlayer = await prisma.player.update({
       where: { id: playerId },
       data: {
@@ -369,7 +410,9 @@ router.put('/:id/players/:playerId', async (req: any, res: any) => {
         age: String(age || ''),
         role,
         basePrice: parseFloat(basePrice),
-        photoUrl: convertGoogleDriveUrl(photoUrl)
+        photoUrl: convertGoogleDriveUrl(photoUrl),
+        status: newStatus,
+        teamId: newTeamId
       }
     });
     res.json({ message: 'Player updated successfully', player: updatedPlayer });
@@ -469,9 +512,9 @@ router.post('/:id/reset', async (req: any, res: any) => {
     if (!auction) return res.status(404).json({ error: 'Auction not found' });
 
     await prisma.$transaction(async (tx) => {
-      // 1. Reset all players
+      // 1. Reset all non-retained players
       await tx.player.updateMany({
-        where: { auctionId: id },
+        where: { auctionId: id, status: { not: 'RETAINED' } },
         data: {
           status: 'PENDING',
           soldPrice: null,
@@ -480,21 +523,17 @@ router.post('/:id/reset', async (req: any, res: any) => {
         }
       });
 
-      // 2. Clear all bids (assuming bids are linked to players in this auction, but actually we can just clear all bids for players in this auction)
-      const players = await tx.player.findMany({ where: { auctionId: id }, select: { id: true } });
-      const playerIds = players.map(p => p.id);
-      if (playerIds.length > 0) {
-        await tx.bid.deleteMany({ where: { playerId: { in: playerIds } } });
-      }
+      // 2. Clear all bids for this auction
+      await tx.bid.deleteMany({ where: { auctionId: id } });
 
       // 3. Reset teams remainingPurse to budget
       const teams = await tx.team.findMany({ where: { auctionId: id } });
-      for (const team of teams) {
-        await tx.team.update({
+      await Promise.all(teams.map(team => 
+        tx.team.update({
           where: { id: team.id },
           data: { remainingPurse: team.budget }
-        });
-      }
+        })
+      ));
 
       // 4. Set auction status to IDLE
       await tx.auction.update({

@@ -37,10 +37,12 @@ export default function HostLiveView() {
   const [playersLeft, setPlayersLeft] = useState(0);
 
   const fetchPlayersLeft = () => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/public/auctions/${auctionId}/players/count`)
       .then(res => res.json())
       .then(data => {
-        setPlayersLeft(data.filter((p: any) => p.status === 'PENDING').length);
+        if (typeof data.count === 'number') {
+           setPlayersLeft(data.count);
+        }
       })
       .catch(() => {});
   };
@@ -81,7 +83,7 @@ export default function HostLiveView() {
       auctionId,
       playerId: currentPlayer.id,
       teamId: selectedTeam!.id,
-      teamName: selectedTeam!.shortName,
+      teamName: selectedTeam!.name,
       amount: parsedBidAmount,
     });
   };
@@ -186,11 +188,13 @@ export default function HostLiveView() {
       fetchTeams();
       fetchPlayersLeft();
       setTimeout(() => setSoldPopup(null), 5000);
-      confetti({
-        particleCount: 150,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
+      if (info.amount > 0) {
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 }
+        });
+      }
     });
 
     socket.on(SocketEvents.PLAYER_UNSOLD, (info: any) => {
@@ -362,7 +366,7 @@ export default function HostLiveView() {
               <div className="flex items-center gap-4 mb-8 border-b border-white/10 pb-6">
                 <Shield className="w-12 h-12 text-accent" />
                 <div>
-                  <h2 className="text-4xl font-black text-white">{viewingTeam.name} ({viewingTeam.shortName})</h2>
+                  <h2 className="text-4xl font-black text-white">{viewingTeam.name}</h2>
                   <p className="text-xl text-gray-400">Squad: {viewingTeam.players?.length || 0}/{viewingTeam.maxPlayers || 15} &bull; Purse: {fmt(viewingTeam.remainingPurse)}</p>
                 </div>
               </div>
@@ -378,7 +382,7 @@ export default function HostLiveView() {
                       )}
                       <div>
                         <div className="font-bold text-lg">{p.name}</div>
-                        <div className="text-sm text-gray-400">{p.role} &bull; {fmt(p.soldPrice || p.basePrice)}</div>
+                        <div className="text-sm text-gray-400">{p.role} &bull; {p.status === 'RETAINED' ? <span className="bg-brand/20 text-brand px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Retained</span> : fmt(p.soldPrice || p.basePrice)}</div>
                       </div>
                     </div>
                   ))
@@ -564,7 +568,7 @@ export default function HostLiveView() {
                       {i === 0 && <div className="absolute top-0 left-0 right-0 h-1 bg-brand shadow-[0_0_10px_rgba(212,175,55,1)]" />}
                       <div className="flex justify-between items-start shrink-0">
                         <div>
-                          <div className="font-black text-xl leading-none text-white">{team.shortName}</div>
+                          <div className="font-black text-xl leading-none text-white">{team.name}</div>
                           <div className="text-xs text-gray-400 mt-1">{team.players?.length || 0}/25 Players</div>
                         </div>
                         <div className="text-right">
@@ -580,7 +584,9 @@ export default function HostLiveView() {
                             {team.players.map((p: any) => (
                               <div key={p.id} className="flex justify-between items-center text-xs py-1.5 border-b border-white/5 last:border-0">
                                 <span className="truncate pr-2 text-gray-300">{p.name}</span>
-                                <span className="font-mono text-brand whitespace-nowrap">{fmt(p.soldPrice || 0)}</span>
+                                <span className="font-mono text-brand whitespace-nowrap">
+                                  {p.status === 'RETAINED' ? <span className="bg-brand/20 text-brand px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">Retained</span> : fmt(p.soldPrice || 0)}
+                                </span>
                               </div>
                             ))}
                           </div>
@@ -659,9 +665,9 @@ export default function HostLiveView() {
                                  </>
                                )}
                              </div>
-                             {teams.find(t => t.shortName === highestTeamName) && (
+                             {teams.find(t => t.name === highestTeamName) && (
                                <div className="text-xs text-gray-400 mt-2 font-mono">
-                                 Purse: {fmt(teams.find(t => t.shortName === highestTeamName).remainingPurse)}
+                                 Purse: {fmt(teams.find(t => t.name === highestTeamName).remainingPurse)}
                                </div>
                              )}
                            </div>
@@ -878,13 +884,13 @@ export default function HostLiveView() {
                   key={team.id} 
                   onClick={() => setViewingTeam(team)}
                   className={`w-full text-left p-3 rounded-xl border flex justify-between items-center transition-all cursor-pointer hover:bg-white/10 ${
-                    highestTeamName === team.shortName 
+                    highestTeamName === team.name 
                       ? 'bg-brand/10 border-brand/30' 
                       : 'bg-white/5 border-white/5'
                   }`}
                 >
                   <div>
-                    <span className="font-black text-base tracking-wide">{team.shortName}</span>
+                    <span className="font-black text-base tracking-wide">{team.name}</span>
                     <span className="text-xs text-gray-500 ml-2 bg-black/50 px-2 py-0.5 rounded">{team.players?.length || 0} players</span>
                   </div>
                   <span className="font-mono font-bold text-sm text-white">{fmt(team.remainingPurse)}</span>

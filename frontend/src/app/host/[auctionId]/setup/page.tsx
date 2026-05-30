@@ -39,6 +39,7 @@ export default function AdminSetup() {
   const [pPrice, setPPrice] = useState("1"); // 1 Lakh default
   const [pPhotoFile, setPPhotoFile] = useState<File | null>(null);
   const [pPhotoPreview, setPPhotoPreview] = useState<string>("");
+  const [pRetainedTeamId, setPRetainedTeamId] = useState("");
   const [pAdding, setPAdding] = useState(false);
 
   const [deletingAuction, setDeletingAuction] = useState(false);
@@ -172,6 +173,7 @@ export default function AdminSetup() {
     setPPrice((player.basePrice / 100000).toString());
     setPPhotoPreview(player.photoUrl || "");
     setPPhotoFile(null);
+    setPRetainedTeamId(player.status === 'RETAINED' ? (player.teamId || "") : "");
 
     const formElement = document.getElementById("player-form");
     if (formElement) {
@@ -186,6 +188,7 @@ export default function AdminSetup() {
     setPPrice("1");
     setPPhotoFile(null);
     setPPhotoPreview("");
+    setPRetainedTeamId("");
   };
 
   const handleManualPlayer = async (e: React.FormEvent) => {
@@ -218,12 +221,12 @@ export default function AdminSetup() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ name: pName, age: "25", role: pRole, basePrice: Number(pPrice) * 100000, photoUrl }),
+        body: JSON.stringify({ name: pName, age: "25", role: pRole, basePrice: Number(pPrice) * 100000, photoUrl, retainedTeamId: pRetainedTeamId || null }),
       });
       const data = await res.json();
       if (res.ok) {
         toast.success(isEdit ? `Success: Updated ${data.player.name}` : `Success: Added ${data.player.name}`);
-        setPName(""); setPPhotoFile(null); setPPhotoPreview("");
+        setPName(""); setPPhotoFile(null); setPPhotoPreview(""); setPRetainedTeamId("");
         setEditingPlayerId(null);
         fetchData();
       } else {
@@ -447,7 +450,7 @@ export default function AdminSetup() {
   };
 
   const downloadSamplePlayersCSV = () => {
-    const csvContent = "name,role,basePrice,photoUrl,age\nVirat Kohli,BATSMAN,20,https://example.com/photo.png,35\nMS Dhoni,WICKETKEEPER,15,,42\nJasprit Bumrah,BOWLER,10,,30";
+    const csvContent = "name,role,basePrice,photoUrl,age,retainedTeam\nVirat Kohli,BATSMAN,20,https://example.com/photo.png,35,\nMS Dhoni,WICKETKEEPER,15,,42,Chennai Kings\nJasprit Bumrah,BOWLER,10,,30,";
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -585,7 +588,7 @@ export default function AdminSetup() {
                <div className="grid grid-cols-1 gap-4">
                  <input type="text" required placeholder="Name" value={pName} onChange={e=>setPName(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
                </div>
-               <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                  <select value={pRole} onChange={e=>setPRole(e.target.value)} className="bg-[#111827] border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none">
                    {auctionInfo?.sport === 'VOLLEYBALL' ? (
                      <>
@@ -606,6 +609,12 @@ export default function AdminSetup() {
                    )}
                  </select>
                  <input type="number" step="any" required placeholder="Base Price (in Lakhs)" value={pPrice} onChange={e=>setPPrice(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none" />
+                 <select value={pRetainedTeamId} onChange={e=>setPRetainedTeamId(e.target.value)} className="bg-[#111827] border border-white/10 rounded-xl py-3 px-4 text-white focus:border-brand/50 outline-none">
+                   <option value="">Not Retained (Auction Pool)</option>
+                   {teams.map((t: any) => (
+                     <option key={t.id} value={t.id}>Retained by {t.shortName}</option>
+                   ))}
+                 </select>
                </div>
                <div className="relative">
                  <label className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl py-3 px-4 cursor-pointer hover:border-brand/50 transition">

@@ -139,20 +139,24 @@ export const setupSockets = (io: Server) => {
     });
 
     socket.on(SocketEvents.NEXT_PLAYER, async ({ auctionId }: { auctionId: string }) => {
+      console.time(`NEXT_PLAYER_${auctionId}`);
       const state = getAuctionState(auctionId);
       if (state.currentPlayer) {
         return socket.emit(SocketEvents.ERROR, { message: 'You must complete the current bid (Sell or Unsold) first' });
       }
 
       // Check if all teams have filled their quota
-      const teams = await prisma.team.findMany({ where: { auctionId }, include: { _count: { select: { players: true } } } });
-      if (teams.length > 0) {
-        const allTeamsFull = teams.every(t => t._count.players >= t.maxPlayers);
-        if (allTeamsFull) {
+      const teamStats = await prisma.team.aggregate({ where: { auctionId }, _sum: { maxPlayers: true } });
+      const totalMax = teamStats._sum.maxPlayers || 0;
+      
+      if (totalMax > 0) {
+        const soldPlayers = await prisma.player.count({ where: { auctionId, status: 'SOLD' } });
+        if (soldPlayers >= totalMax) {
           await prisma.auction.update({ where: { id: auctionId }, data: { status: 'COMPLETED' } });
           state.status = 'COMPLETED';
           stopTimer(auctionId);
           io.to(auctionId).emit(SocketEvents.AUCTION_ENDED);
+          console.timeEnd(`NEXT_PLAYER_${auctionId}`);
           return;
         }
       }
@@ -167,9 +171,16 @@ export const setupSockets = (io: Server) => {
           skip: randomSkip 
         });
       } else {
-        const unsoldCount = await prisma.player.count({ where: { status: 'UNSOLD', auctionId, isRecalled: false } });
+        let unsoldCount = await prisma.player.count({ where: { status: 'UNSOLD', auctionId, isRecalled: false } });
         if (unsoldCount === 0) {
-          return socket.emit(SocketEvents.NO_PLAYERS_LEFT);
+          const totalUnsold = await prisma.player.count({ where: { status: 'UNSOLD', auctionId } });
+          if (totalUnsold > 0) {
+             await prisma.player.updateMany({ where: { status: 'UNSOLD', auctionId }, data: { isRecalled: false } });
+             unsoldCount = totalUnsold;
+          } else {
+             console.timeEnd(`NEXT_PLAYER_${auctionId}`);
+             return socket.emit(SocketEvents.NO_PLAYERS_LEFT);
+          }
         }
         const randomSkip = Math.floor(Math.random() * unsoldCount);
         nextPlayer = await prisma.player.findFirst({ 
@@ -186,6 +197,7 @@ export const setupSockets = (io: Server) => {
       }
 
       if (!nextPlayer) {
+        console.timeEnd(`NEXT_PLAYER_${auctionId}`);
         return socket.emit(SocketEvents.NO_PLAYERS_LEFT);
       }
 
@@ -196,11 +208,14 @@ export const setupSockets = (io: Server) => {
       state.timer = 0;
       state.bidHistory = [];
       
-      await prisma.auction.update({ where: { id: auctionId }, data: { status: 'ACTIVE' } });
+      if (state.status !== 'ACTIVE') {
+        await prisma.auction.update({ where: { id: auctionId }, data: { status: 'ACTIVE' } });
+      }
 
       
       startTimer(io, auctionId);
       io.to(auctionId).emit(SocketEvents.AUCTION_STATE_UPDATE, getCleanState(auctionId));
+      console.timeEnd(`NEXT_PLAYER_${auctionId}`);
     });
 
     socket.on(SocketEvents.PAUSE_AUCTION, ({ auctionId }: { auctionId: string }) => {

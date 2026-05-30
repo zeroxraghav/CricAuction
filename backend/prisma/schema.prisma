@@ -25,6 +25,7 @@ enum PlayerStatus {
   UNSOLD
   SOLD
   PENDING
+  RETAINED
 }
 
 model Auction {

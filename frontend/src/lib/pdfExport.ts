@@ -70,7 +70,9 @@ export const exportAuctionSummaryPDF = async (auctionInfo: any, teams: any[], pl
             <td style="font-weight: bold;">${p.name}</td>
             <td><span class="role-badge" style="${getRoleColor(p.role)}">${p.role}</span></td>
             <td class="price" style="color: #64748b;">${fmt(p.basePrice)}</td>
-            <td class="price text-green-600">${fmt(p.soldPrice)}</td>
+            <td class="price text-green-600">
+              ${p.status === 'RETAINED' ? '<span class="role-badge" style="background: #fef08a; color: #854d0e;">RETAINED</span>' : fmt(p.soldPrice)}
+            </td>
           </tr>
           `).join('')}
         </tbody>

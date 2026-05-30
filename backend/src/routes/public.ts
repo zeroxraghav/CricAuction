@@ -19,6 +19,18 @@ router.get('/auctions/:id/teams', async (req, res) => {
   }
 });
 
+router.get('/auctions/:id/players/count', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const count = await prisma.player.count({
+      where: { auctionId: id, status: { in: ['PENDING', 'UNSOLD'] } }
+    });
+    res.json({ count });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch player count' });
+  }
+});
+
 router.get('/auctions/:id/players', async (req, res) => {
   const { id } = req.params;
   try {
