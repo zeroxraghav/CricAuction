@@ -466,7 +466,7 @@ export default function AdminSetup() {
 
   const filteredPlayers = players
     .filter((p: any) => playerFilter === "ALL" || p.status === playerFilter)
-    .filter((p: any) => playerFilter !== "SOLD" || teamFilter === "ALL" || p.teamId === teamFilter);
+    .filter((p: any) => (playerFilter !== "SOLD" && playerFilter !== "RETAINED") || teamFilter === "ALL" || p.teamId === teamFilter);
 
   return (
     <div className="min-h-screen p-4 md:p-8 flex flex-col relative overflow-hidden bg-[#0a0f1a] text-white">
@@ -689,9 +689,10 @@ export default function AdminSetup() {
                    <option value="PENDING">Pending</option>
                    <option value="SOLD">Sold</option>
                    <option value="UNSOLD">Unsold</option>
+                   <option value="RETAINED">Retained</option>
                  </select>
                  
-                 {playerFilter === 'SOLD' && (
+                 {(playerFilter === 'SOLD' || playerFilter === 'RETAINED') && (
                    <select 
                      value={teamFilter} 
                      onChange={(e) => setTeamFilter(e.target.value)}
