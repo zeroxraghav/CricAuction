@@ -533,7 +533,7 @@ export default function SpectatorView() {
                 <Shield className="w-12 h-12 text-accent" />
                 <div>
                   <h2 className="text-4xl font-black text-white">{viewingTeam.name}</h2>
-                  <p className="text-xl text-gray-400">Squad: {viewingTeam.players?.length || 0}/25 &bull; Purse: {fmt(viewingTeam.remainingPurse)}</p>
+                  <p className="text-xl text-gray-400">Squad: {viewingTeam.players?.length || 0}/{viewingTeam.maxPlayers || 15} &bull; Purse: {fmt(viewingTeam.remainingPurse)}</p>
                 </div>
               </div>
 
@@ -687,7 +687,7 @@ export default function SpectatorView() {
                       <div className="flex justify-between items-start shrink-0">
                         <div>
                           <div className="font-black text-xl leading-none text-white">{team.name}</div>
-                          <div className="text-xs text-gray-400 mt-1">{team.players?.length || 0}/25 Players</div>
+                          <div className="text-xs text-gray-400 mt-1">{team.players?.length || 0}/{team.maxPlayers || 15} Players</div>
                         </div>
                         <div className="text-right">
                           <div className="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Purse</div>
@@ -752,7 +752,7 @@ export default function SpectatorView() {
 
                     <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left min-w-0">
                       <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
-                      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none break-words" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)' }}>
+                      <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none break-words" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)', wordSpacing: '0.25em' }}>
                         {currentPlayer.name}
                       </h2>
                     </div>
