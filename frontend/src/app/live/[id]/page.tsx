@@ -363,7 +363,7 @@ export default function SpectatorView() {
                     )}
                     <div className="flex-1">
                       <div className="font-bold">{p.name}</div>
-                      <div className="text-sm text-gray-500">{p.role} &bull; {p.age ? p.age + ' YRS' : ''}</div>
+                      <div className="text-sm text-gray-500">{p.role}{p.age && p.age !== 'N/A' && p.age !== '0' ? ' • ' + p.age + ' YRS' : ''}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-xs text-gray-500 uppercase font-bold">Base</div>
@@ -603,7 +603,7 @@ export default function SpectatorView() {
                         )}
                         <div className="flex-1">
                           <div className="font-bold text-lg">{p.name}</div>
-                          <div className="text-sm text-gray-400">{p.role} &bull; {p.age ? p.age + ' YRS' : ''}</div>
+                          <div className="text-sm text-gray-400">{p.role}{p.age && p.age !== 'N/A' && p.age !== '0' ? ' • ' + p.age + ' YRS' : ''}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Base Price</div>
@@ -760,7 +760,7 @@ export default function SpectatorView() {
                     </div>
 
                     <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left min-w-0">
-                      <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
+                      <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role}{currentPlayer.age && currentPlayer.age !== 'N/A' && currentPlayer.age !== '0' ? ' • ' + currentPlayer.age + ' YRS' : ''}</div>
                       <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none break-words" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)', wordSpacing: '0.25em' }}>
                         {currentPlayer.name}
                       </h2>

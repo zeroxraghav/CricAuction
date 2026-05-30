@@ -436,7 +436,7 @@ export default function HostLiveView() {
                         )}
                         <div className="flex-1">
                           <div className="font-bold text-lg">{p.name}</div>
-                          <div className="text-sm text-gray-400">{p.role} &bull; {p.age ? p.age + ' YRS' : ''}</div>
+                          <div className="text-sm text-gray-400">{p.role}{p.age && p.age !== 'N/A' && p.age !== '0' ? ' • ' + p.age + ' YRS' : ''}</div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs text-gray-500 uppercase font-bold tracking-widest mb-1">Base Price</div>
@@ -642,7 +642,7 @@ export default function HostLiveView() {
                     </div>
 
                     <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left min-w-0">
-                      <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role} &bull; {currentPlayer.age ? currentPlayer.age + ' YRS' : ''}</div>
+                      <div className="text-lg md:text-2xl font-bold text-accent tracking-widest uppercase mb-2">{currentPlayer.role}{currentPlayer.age && currentPlayer.age !== 'N/A' && currentPlayer.age !== '0' ? ' • ' + currentPlayer.age + ' YRS' : ''}</div>
                       <h2 className="text-4xl sm:text-5xl lg:text-6xl font-black uppercase tracking-tight leading-none break-words" style={{ textShadow: '0 0 40px rgba(255,255,255,0.2)', wordSpacing: '0.25em' }}>
                         {currentPlayer.name}
                       </h2>
@@ -715,11 +715,19 @@ export default function HostLiveView() {
                             </button>
                           ))}
                         </div>
-                        {selectedTeamId && (
+                        {selectedTeamId && selectedTeam && (
                           <div className="mt-4 flex flex-col gap-1 p-3 bg-black/40 rounded-xl border border-white/10 shadow-inner">
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between items-center mb-2 pb-2 border-b border-white/10">
+                              <span className="text-xs text-gray-400 uppercase tracking-widest font-bold">Selected Team</span>
+                              <span className="text-sm font-bold text-brand">{selectedTeam.name}</span>
+                            </div>
+                            <div className="flex justify-between items-center pb-2 border-b border-white/5">
                               <span className="text-xs text-gray-400 uppercase tracking-widest font-bold">Total Purse</span>
                               <span className="text-sm font-mono font-bold text-gray-300">{fmt(selectedTeamPurse)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs text-gray-400 uppercase tracking-widest font-bold">Slots Left</span>
+                              <span className="text-sm font-mono font-bold text-gray-300">{Math.max(0, (selectedTeam.maxPlayers || 15) - (selectedTeam.players?.length || 0))}</span>
                             </div>
                             {bidAmount !== "" && !isTeamFull && (
                               <div className="flex justify-between items-center pt-2 mt-1 border-t border-white/10">
